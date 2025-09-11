@@ -13,12 +13,11 @@
     }
   ],
   "file_handlers": [
-    {
-      "action": "index.html",
-      "accept": {
-        "image/png": [".png"],
-        "image/jpeg": [".jpg", ".jpeg"]
-      }
+  {
+    "action": "index.html",
+    "accept": {
+      "image/*": [".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".ico", ".svg"]
     }
-  ]
+  }
+]
 }
