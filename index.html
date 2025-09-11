@@ -1,36 +1,54 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Gallery</title>
-  <link rel="stylesheet" href="style.css">
-  <link rel="manifest" href="manifest.json">
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div id="viewer">
     <div id="topbar">
-      <span id="filename">Chưa có ảnh</span>
+      <div id="lefttop">
+        <span id="filename">Chưa có ảnh</span>
+      </div>
       <div id="controls">
-        <button id="prev">⏮️</button>
-        <button id="next">⏭️</button>
-        <button id="zoom-in">🔍+</button>
-        <button id="zoom-out">🔍-</button>
-        <button id="rotate">🔄</button>
+        <button id="prev" title="Previous (←)">⏮️</button>
+        <button id="next" title="Next (→)">⏭️</button>
+        <button id="zoom-in" title="Zoom In (+)">🔍+</button>
+        <button id="zoom-out" title="Zoom Out (-)">🔍-</button>
+        <button id="rotate" title="Rotate (R)">🔄</button>
+        <button id="edit-toggle" title="Edit (E)">✏️ Edit</button>
+        <button id="save" title="Save edited image">💾 Save</button>
+        <button id="open-folder" title="Open folder (choose folder)">📁 Open folder</button>
       </div>
     </div>
-    <img id="image" alt="Image Viewer">
+
+    <!-- canvas viewer and img fallback -->
+    <div id="stage">
+      <img id="image" alt="Image Viewer" draggable="false" />
+      <!-- canvas will be inserted when editing -->
+    </div>
+
     <div id="placeholder">
       <p>Chưa có ảnh nào được mở</p>
-      <input type="file" id="fileInput" accept="image/*" multiple>
+      <div class="actions">
+        <input type="file" id="fileInput" accept="image/*" multiple />
+        <button id="uploadBtn">Upload files</button>
+      </div>
     </div>
   </div>
+
   <script src="viewer.js"></script>
+
   <script>
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("service-worker.js")
-      .then(() => console.log("Service Worker registered!"))
-      .catch(err => console.error("SW registration failed:", err));
-  }
+    // register service worker
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("service-worker.js")
+        .then(() => console.log("Service Worker registered!"))
+        .catch(err => console.error("SW registration failed:", err));
+    }
   </script>
 </body>
 </html>
