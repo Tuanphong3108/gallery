@@ -6,6 +6,10 @@ let history = [];
 let redoStack = [];
 
 const img = document.getElementById("image");
+const filenameLabel = document.getElementById("filename");
+const upload = document.getElementById("upload");
+const fileInput = document.getElementById("file-input");
+
 const canvas = document.createElement("canvas");
 const ctx = canvas.getContext("2d");
 let drawing = false;
@@ -15,23 +19,29 @@ let brushSize = 5;
 // Hiển thị ảnh
 async function showImage() {
   if (!fileHandles.length) return;
+
   const file = await fileHandles[currentIndex].getFile();
   const bitmap = await createImageBitmap(file);
 
   canvas.width = bitmap.width;
   canvas.height = bitmap.height;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(bitmap, 0, 0);
 
   img.src = canvas.toDataURL();
+  img.style.display = "block";
   img.style.transform = `scale(${zoom}) rotate(${rotation}deg)`;
 
-  saveHistory(); // lưu state đầu tiên
+  filenameLabel.textContent = file.name;
+  upload.style.display = "none";
+
+  saveHistory(); // lưu trạng thái đầu
 }
 
-// Lưu lịch sử để undo
+// Lịch sử để undo/redo
 function saveHistory() {
   history.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
-  if (history.length > 20) history.shift();
+  if (history.length > 20) history.shift(); // giữ 20 bước
   redoStack = [];
 }
 
@@ -56,29 +66,38 @@ function redo() {
 async function saveFile() {
   if (!fileHandles.length) return;
   const fileHandle = fileHandles[currentIndex];
-  const writable = await fileHandle.createWritable();
-  await writable.write(await (await fetch(canvas.toDataURL())).blob());
-  await writable.close();
-  alert("Saved!");
+  try {
+    const writable = await fileHandle.createWritable();
+    await writable.write(await (await fetch(canvas.toDataURL())).blob());
+    await writable.close();
+    alert("Saved!");
+  } catch (e) {
+    console.error("Save failed:", e);
+    alert("Save failed, try Save As.");
+  }
 }
 
 // Save As
 async function saveFileAs() {
-  const handle = await showSaveFilePicker({
-    types: [
-      {
-        description: "Image file",
-        accept: { "image/png": [".png"], "image/jpeg": [".jpg"] }
-      }
-    ]
-  });
-  const writable = await handle.createWritable();
-  await writable.write(await (await fetch(canvas.toDataURL())).blob());
-  await writable.close();
-  alert("Saved As!");
+  try {
+    const handle = await showSaveFilePicker({
+      types: [
+        {
+          description: "Image file",
+          accept: { "image/png": [".png"], "image/jpeg": [".jpg", ".jpeg"] }
+        }
+      ]
+    });
+    const writable = await handle.createWritable();
+    await writable.write(await (await fetch(canvas.toDataURL())).blob());
+    await writable.close();
+    alert("Saved As!");
+  } catch (e) {
+    console.error("Save As canceled or failed:", e);
+  }
 }
 
-// Edit: vẽ brush
+// Brush vẽ
 img.addEventListener("mousedown", e => {
   drawing = true;
   ctx.beginPath();
@@ -112,7 +131,16 @@ document.getElementById("save-as").onclick = saveFileAs;
 document.getElementById("brush-color").oninput = e => brushColor = e.target.value;
 document.getElementById("brush-size").oninput = e => brushSize = e.target.value;
 
-// File Handling API
+// Upload fallback (nếu không mở qua File Handling API)
+fileInput.onchange = () => {
+  fileHandles = Array.from(fileInput.files).map(f => ({
+    getFile: async () => f
+  }));
+  currentIndex = 0;
+  showImage();
+};
+
+// File Handling API (ChromeOS / Edge / Windows)
 if ("launchQueue" in window) {
   launchQueue.setConsumer(async (launchParams) => {
     if (!launchParams.files.length) return;
