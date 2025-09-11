@@ -1,67 +1,99 @@
-body {
-  margin: 0;
-  background: black;
-  color: white;
-  font-family: sans-serif;
-  height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+:root {
+  --topbar-bg: rgba(0,0,0,0.6);
+  --control-btn-bg: rgba(255,255,255,0.08);
+  --control-btn-hover: rgba(255,255,255,0.14);
 }
 
-#viewer {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  text-align: center;
-}
+* { box-sizing: border-box; }
+html,body { height: 100%; margin: 0; background: #000; color: #fff; font-family: Inter, Roboto, Arial, sans-serif; }
 
+#viewer { position: relative; width: 100%; height: 100vh; overflow: hidden; }
+
+/* Topbar (overlay) */
 #topbar {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
+  top: 0; left: 0; right: 0;
+  z-index: 40;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(0, 0, 0, 0.5);
   padding: 8px 12px;
-  z-index: 10;
+  background: var(--topbar-bg);
+  backdrop-filter: blur(6px);
 }
 
-#filename {
-  font-size: 14px;
-  color: #fff;
-}
+#lefttop { font-size: 14px; color: #fff; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+#controls { display: flex; gap: 8px; align-items: center; }
 
 #controls button {
-  margin-left: 6px;
-  padding: 6px 10px;
-  font-size: 16px;
+  background: var(--control-btn-bg);
   border: none;
-  border-radius: 6px;
-  background: rgba(255,255,255,0.2);
-  color: white;
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 8px;
   cursor: pointer;
+  font-size: 16px;
+}
+#controls button:hover { background: var(--control-btn-hover); }
+#controls button:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* Stage where the image / canvas sits */
+#stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 #image {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
-  transition: transform 0.3s;
+  user-select: none;
+  -webkit-user-drag: none;
+  transition: transform 0.18s ease;
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%) scale(1) rotate(0deg);
 }
 
+/* placeholder when no image */
 #placeholder {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  text-align: center;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
   color: #aaa;
+  z-index: 1;
+}
+#placeholder p { margin: 0 0 12px; font-size: 18px; }
+#fileInput { display: none; }
+#uploadBtn {
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
 }
 
-#fileInput {
-  margin-top: 10px;
+/* canvas editing overlay sits above image */
+.edit-canvas {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 30;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+}
+
+/* crop rectangle styling (on-canvas or absolutely positioned) */
+.crop-rect {
+  position: absolute;
+  border: 2px dashed rgba(255,255,255,0.8);
+  z-index: 50;
+  pointer-events: none;
 }
