@@ -4,6 +4,9 @@ let zoom = 1;
 let rotation = 0;
 let history = [];
 let redoStack = [];
+let cropping = false;
+let cropStart = null;
+let cropRect = null;
 
 const img = document.getElementById("image");
 const filenameLabel = document.getElementById("filename");
@@ -15,6 +18,12 @@ const ctx = canvas.getContext("2d");
 let drawing = false;
 let brushColor = "#ff0000";
 let brushSize = 5;
+
+const overlay = document.createElement("div");
+overlay.style.position = "absolute";
+overlay.style.border = "2px dashed #0f0";
+overlay.style.pointerEvents = "none";
+document.getElementById("viewer").appendChild(overlay);
 
 // Hiển thị ảnh
 async function showImage() {
@@ -149,3 +158,62 @@ if ("launchQueue" in window) {
     showImage();
   });
 }
+
+
+// Bật chế độ crop
+document.getElementById("crop").onclick = () => {
+  cropping = !cropping;
+  overlay.style.display = cropping ? "block" : "none";
+  if (!cropping) {
+    overlay.style.width = "0";
+    overlay.style.height = "0";
+  }
+};
+
+// Khi click chuột để chọn vùng crop
+img.addEventListener("mousedown", e => {
+  if (cropping) {
+    cropStart = { x: e.offsetX, y: e.offsetY };
+    overlay.style.left = `${e.offsetX}px`;
+    overlay.style.top = `${e.offsetY}px`;
+    overlay.style.width = "0";
+    overlay.style.height = "0";
+  }
+});
+
+// Kéo chuột để vẽ khung crop
+img.addEventListener("mousemove", e => {
+  if (cropping && cropStart) {
+    const x = Math.min(cropStart.x, e.offsetX);
+    const y = Math.min(cropStart.y, e.offsetY);
+    const w = Math.abs(cropStart.x - e.offsetX);
+    const h = Math.abs(cropStart.y - e.offsetY);
+
+    overlay.style.left = `${x}px`;
+    overlay.style.top = `${y}px`;
+    overlay.style.width = `${w}px`;
+    overlay.style.height = `${h}px`;
+
+    cropRect = { x, y, w, h };
+  }
+});
+
+// Thả chuột để xác nhận crop
+img.addEventListener("mouseup", () => {
+  if (cropping && cropRect) {
+    const { x, y, w, h } = cropRect;
+    const cropped = ctx.getImageData(x, y, w, h);
+
+    canvas.width = w;
+    canvas.height = h;
+    ctx.putImageData(cropped, 0, 0);
+
+    img.src = canvas.toDataURL();
+    saveHistory();
+
+    overlay.style.width = "0";
+    overlay.style.height = "0";
+    cropping = false;
+    cropRect = null;
+  }
+});
