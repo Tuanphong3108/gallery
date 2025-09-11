@@ -1,12 +1,19 @@
-/* viewer.js
-   - Supports launchQueue (File Handling API) + fallback input
-   - Centered image
-   - Prev/Next when multiple files provided
-   - Edit mode: Brush, Text, Crop, Rotate, Zoom, Save
-   - Uses canvas for editing; displays filename top-left
+/* viewer.js - FULL
+   Features:
+   - launchQueue (File Handling API) + fallback input
+   - center image view
+   - prev/next for multiple files
+   - edit mode with canvas:
+       * Brush drawing with color/size/opacity
+       * Text insertion
+       * Crop
+       * Undo / Redo (snapshot stack)
+       * Save (showSaveFilePicker or fallback download)
+   - keyboard shortcuts:
+       ArrowLeft / ArrowRight, + / -, R, E (edit), Ctrl+Z (undo), Ctrl+Y (redo)
 */
 
-let fileHandles = []; // each item: object with getFile() async
+let fileHandles = [];
 let currentIndex = 0;
 let zoom = 1;
 let rotation = 0;
@@ -26,6 +33,12 @@ const editToggleBtn = document.getElementById("edit-toggle");
 const saveBtn = document.getElementById("save");
 const openFolderBtn = document.getElementById("open-folder");
 
+const undoBtn = document.getElementById("undo");
+const redoBtn = document.getElementById("redo");
+const brushColorInput = document.getElementById("brush-color");
+const brushSizeInput = document.getElementById("brush-size");
+const brushOpacityInput = document.getElementById("brush-opacity");
+
 let editing = false;
 let canvas = null;
 let ctx = null;
@@ -33,31 +46,33 @@ let drawMode = "brush"; // 'brush' | 'text' | 'crop'
 let isDrawing = false;
 let cropRect = null;
 
-// UTIL: normalize incoming files (launchQueue gives FileSystemFileHandle objects with getFile)
+// Undo/Redo stacks
+const UNDO_LIMIT = 20;
+let undoStack = [];
+let redoStack = [];
+
+// Utility to wrap File or FileHandle
 function normalizeFileHandles(list) {
-  // list may be File objects or FileSystemFileHandle objects
   return Array.from(list).map(f => {
-    if (f.getFile) return f; // file handle-like
-    // wrap regular File into object with getFile()
-    return {
-      getFile: async () => f
-    };
+    if (f.getFile) return f;
+    return { getFile: async () => f };
   });
 }
 
-// UI state updates
 function updateControlsState() {
   const multi = fileHandles.length > 1;
   prevBtn.disabled = !multi || currentIndex === 0;
   nextBtn.disabled = !multi || currentIndex >= fileHandles.length - 1;
   saveBtn.disabled = !editing;
+  undoBtn.disabled = undoStack.length === 0;
+  redoBtn.disabled = redoStack.length === 0;
 }
 
-// show placeholder when no image
+// Show image or placeholder
 async function showImage() {
   if (!fileHandles.length) {
     img.style.display = "none";
-    if (canvas) { canvas.style.display = "none"; }
+    if (canvas) canvas.style.display = "none";
     placeholder.style.display = "flex";
     filenameEl.textContent = "Chưa có ảnh";
     updateControlsState();
@@ -65,26 +80,21 @@ async function showImage() {
   }
 
   placeholder.style.display = "none";
-
   const file = await fileHandles[currentIndex].getFile();
   const url = URL.createObjectURL(file);
   img.src = url;
   img.onload = () => {
-    // reset transforms
     zoom = 1;
     rotation = 0;
     img.style.transform = `translate(-50%, -50%) scale(${zoom}) rotate(${rotation}deg)`;
     img.style.display = "block";
-    if (canvas) {
-      // remove canvas if editing was off
-      canvas.style.display = "none";
-    }
+    if (canvas) canvas.style.display = "none";
   };
   filenameEl.textContent = file.name || "Image";
   updateControlsState();
 }
 
-// LaunchQueue for File Handling API (ChromeOS)
+// launchQueue (ChromeOS)
 if ("launchQueue" in window) {
   launchQueue.setConsumer(async (launchParams) => {
     if (!launchParams.files?.length) return;
@@ -94,7 +104,7 @@ if ("launchQueue" in window) {
   });
 }
 
-// Fallback: input file
+// fallback input
 uploadBtn.addEventListener("click", () => fileInput.click());
 fileInput.addEventListener("change", async (e) => {
   const files = Array.from(e.target.files);
@@ -103,21 +113,15 @@ fileInput.addEventListener("change", async (e) => {
   showImage();
 });
 
-// Controls: prev/next
+// prev/next
 prevBtn.addEventListener("click", () => {
-  if (currentIndex > 0) {
-    currentIndex--;
-    showImage();
-  }
+  if (currentIndex > 0) { currentIndex--; showImage(); }
 });
 nextBtn.addEventListener("click", () => {
-  if (currentIndex < fileHandles.length - 1) {
-    currentIndex++;
-    showImage();
-  }
+  if (currentIndex < fileHandles.length - 1) { currentIndex++; showImage(); }
 });
 
-// Zoom & Rotate
+// zoom & rotate
 zoomInBtn.addEventListener("click", () => {
   zoom += 0.2; img.style.transform = `translate(-50%, -50%) scale(${zoom}) rotate(${rotation}deg)`;
 });
@@ -128,26 +132,22 @@ rotateBtn.addEventListener("click", () => {
   rotation = (rotation + 90) % 360; img.style.transform = `translate(-50%, -50%) scale(${zoom}) rotate(${rotation}deg)`;
 });
 
-// Open folder (uses showDirectoryPicker) — requires permission & user interaction
+// open folder (FS Access)
 openFolderBtn.addEventListener("click", async () => {
   if (!window.showDirectoryPicker) {
-    alert("File System Access API chưa được hỗ trợ trên trình duyệt này.");
+    alert("File System Access API chưa hỗ trợ ở trình duyệt này.");
     return;
   }
   try {
-    const dirHandle = await window.showDirectoryPicker();
+    const dir = await window.showDirectoryPicker();
     const files = [];
-    for await (const [, handle] of dirHandle) {
+    for await (const [, handle] of dir) {
       if (handle.kind === "file") {
-        // check extension by mime quickly
         const f = await handle.getFile();
         if (f.type.startsWith("image/")) files.push(handle);
       }
     }
-    if (!files.length) {
-      alert("Không tìm thấy file ảnh trong thư mục.");
-      return;
-    }
+    if (!files.length) { alert("Không tìm thấy ảnh trong thư mục."); return; }
     fileHandles = normalizeFileHandles(files);
     currentIndex = 0;
     showImage();
@@ -156,7 +156,7 @@ openFolderBtn.addEventListener("click", async () => {
   }
 });
 
-// EDIT: toggle edit mode
+// EDIT toggle
 editToggleBtn.addEventListener("click", async () => {
   if (!fileHandles.length) return alert("Chưa có ảnh để chỉnh.");
   editing = !editing;
@@ -170,16 +170,15 @@ editToggleBtn.addEventListener("click", async () => {
   updateControlsState();
 });
 
-// Save edited image (from canvas)
+// SAVE edited image
 saveBtn.addEventListener("click", async () => {
   if (!editing || !canvas) return;
-  // get blob
   canvas.toBlob(async (blob) => {
     if (!blob) return alert("Lưu thất bại.");
-    // showSaveFilePicker (Chrome/Chromium)
     if (window.showSaveFilePicker) {
       try {
-        const suggested = (await fileHandles[currentIndex].getFile()).name.replace(/\.[^.]+$/, "") + "-edited.png";
+        const origName = (await fileHandles[currentIndex].getFile()).name || "image";
+        const suggested = origName.replace(/\.[^.]+$/, "") + "-edited.png";
         const handle = await window.showSaveFilePicker({
           suggestedName: suggested,
           types: [{ description: "PNG Image", accept: { "image/png": [".png"] } }]
@@ -187,13 +186,12 @@ saveBtn.addEventListener("click", async () => {
         const writable = await handle.createWritable();
         await writable.write(blob);
         await writable.close();
-        alert("Saved!");
+        toast("Saved!");
       } catch (err) {
         console.error(err);
-        alert("Lưu bị huỷ hoặc lỗi.");
+        toast("Save cancelled or failed.");
       }
     } else {
-      // fallback download
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -202,12 +200,57 @@ saveBtn.addEventListener("click", async () => {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      alert("Downloaded edited.png");
+      toast("Downloaded edited.png");
     }
   }, "image/png");
 });
 
-// Keyboard shortcuts
+// Undo / Redo logic
+function pushUndoSnapshot() {
+  if (!canvas) return;
+  try {
+    const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    undoStack.push(data);
+    if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+    // clear redo on new action
+    redoStack = [];
+    updateControlsState();
+  } catch (err) {
+    console.warn("pushUndoSnapshot failed:", err);
+  }
+}
+
+function undo() {
+  if (!undoStack.length) return;
+  const last = undoStack.pop();
+  // push current to redo
+  try {
+    const current = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    redoStack.push(current);
+    ctx.putImageData(last, 0, 0);
+    updateControlsState();
+  } catch (err) {
+    console.error("undo error", err);
+  }
+}
+
+function redo() {
+  if (!redoStack.length) return;
+  const next = redoStack.pop();
+  try {
+    const current = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    undoStack.push(current);
+    ctx.putImageData(next, 0, 0);
+    updateControlsState();
+  } catch (err) {
+    console.error("redo error", err);
+  }
+}
+
+undoBtn.addEventListener("click", undo);
+redoBtn.addEventListener("click", redo);
+
+// keyboard shortcuts
 document.addEventListener("keydown", (e) => {
   if (e.key === "ArrowLeft") prevBtn.click();
   if (e.key === "ArrowRight") nextBtn.click();
@@ -215,36 +258,60 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "-") zoomOutBtn.click();
   if (e.key.toLowerCase() === "r") rotateBtn.click();
   if (e.key.toLowerCase() === "e") editToggleBtn.click();
+
+  // Ctrl+Z, Ctrl+Y for undo/redo
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+    e.preventDefault();
+    undo();
+  }
+  if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === "y" || (e.shiftKey && e.key.toLowerCase() === "z"))) {
+    e.preventDefault();
+    redo();
+  }
 });
 
-// ---------- EDIT MODE IMPLEMENTATION ----------
-function enterEditMode() {
-  // create canvas same size as natural image
-  const naturalW = img.naturalWidth;
-  const naturalH = img.naturalHeight;
-  if (!naturalW || !naturalH) { alert("Ảnh chưa load xong."); return; }
+// toast helper
+let toastTimer = null;
+function toast(msg, ms = 1400) {
+  let t = document.querySelector(".toast");
+  if (!t) {
+    t = document.createElement("div");
+    t.className = "toast";
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.display = "block";
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.style.display = "none"; }, ms);
+}
 
-  // create or reuse canvas
+// ---------- EDIT MODE ----------
+async function enterEditMode() {
+  // ensure image loaded
+  if (!img.src || !img.naturalWidth) {
+    toast("Ảnh chưa load xong.");
+    return;
+  }
+
+  // create canvas if needed
   if (!canvas) {
     canvas = document.createElement("canvas");
     canvas.className = "edit-canvas";
-    canvas.style.zIndex = 60;
-    canvas.style.cursor = "crosshair";
     canvas.tabIndex = 0;
     ctx = canvas.getContext("2d");
     document.getElementById("stage").appendChild(canvas);
   }
 
-  // size canvas to displayed scale but keep high resolution: we'll use natural size for editing
-  // show canvas scaled to fit viewport similar to img
+  // size canvas to natural size (high res)
+  const naturalW = img.naturalWidth;
+  const naturalH = img.naturalHeight;
   canvas.width = naturalW;
   canvas.height = naturalH;
-  // draw image into canvas
+  // draw image
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-  // position the canvas overlay centered like the img. We'll use CSS transforms to scale down to fit viewport.
-  // calculate scale to fit viewport
+  // scale canvas to fit viewport
   const viewportW = window.innerWidth;
   const viewportH = window.innerHeight;
   const fitScale = Math.min(viewportW / canvas.width, viewportH / canvas.height, 1);
@@ -254,33 +321,40 @@ function enterEditMode() {
   canvas.style.top = "50%";
   canvas.style.transform = "translate(-50%, -50%)";
   canvas.style.display = "block";
+  canvas.style.zIndex = 50;
   img.style.display = "none";
 
-  // setup simple drawing handlers
+  // clear stacks
+  undoStack = [];
+  redoStack = [];
+  // push initial snapshot
+  try {
+    const init = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    undoStack.push(init);
+  } catch (err) {
+    console.warn("init snapshot failed", err);
+  }
+  updateControlsState();
+
+  // setup canvas handlers
   drawMode = "brush";
-  setupCanvasHandlers(canvas, ctx, fitScale);
-  saveBtn.disabled = false;
+  setupCanvasHandlers(canvas, ctx);
+  toast("Edit mode: b=Brush, t=Text, c=Crop. Ctrl+Z undo, Ctrl+Y redo");
 }
 
 function exitEditMode() {
-  if (canvas) {
-    canvas.style.display = "none";
-  }
+  if (canvas) canvas.style.display = "none";
   img.style.display = "block";
   editing = false;
-  saveBtn.disabled = true;
+  updateControlsState();
 }
 
-// canvas handlers: simple brush, text and crop
-function setupCanvasHandlers(c, ctxLocal, displayScale) {
-  // reset any crop overlay
+// canvas handlers with undo/redo integration
+function setupCanvasHandlers(c, ctxLocal) {
   cropRect = null;
-
-  // Brush drawing variables (in canvas coordinate space)
   let lastX = 0, lastY = 0;
 
   function getCanvasPos(e) {
-    // support pointer events
     const rect = c.getBoundingClientRect();
     const x = (e.clientX - rect.left) * (c.width / rect.width);
     const y = (e.clientY - rect.top) * (c.height / rect.height);
@@ -288,27 +362,34 @@ function setupCanvasHandlers(c, ctxLocal, displayScale) {
   }
 
   c.onpointerdown = (e) => {
+    c.focus();
     if (drawMode === "brush") {
+      // push snapshot before starting a new brush stroke
+      pushUndoSnapshot();
       isDrawing = true;
       const p = getCanvasPos(e);
       lastX = p.x; lastY = p.y;
-      ctxLocal.lineJoin = "round";
-      ctxLocal.lineCap = "round";
-      ctxLocal.strokeStyle = "#ff0000";
-      ctxLocal.lineWidth = 8; // in canvas px
       ctxLocal.beginPath();
       ctxLocal.moveTo(lastX, lastY);
+      ctxLocal.lineJoin = "round";
+      ctxLocal.lineCap = "round";
+      ctxLocal.strokeStyle = brushColorInput.value;
+      ctxLocal.globalAlpha = parseFloat(brushOpacityInput.value);
+      ctxLocal.lineWidth = parseInt(brushSizeInput.value, 10);
     } else if (drawMode === "crop") {
+      pushUndoSnapshot(); // snapshot before crop interaction
       isDrawing = true;
       const p = getCanvasPos(e);
       cropRect = { x1: p.x, y1: p.y, x2: p.x, y2: p.y };
     } else if (drawMode === "text") {
-      // add text at click
+      pushUndoSnapshot(); // snapshot before adding text
       const p = getCanvasPos(e);
       const userText = prompt("Nhập chữ muốn thêm:");
       if (userText) {
-        ctxLocal.fillStyle = "#ffffff";
-        ctxLocal.font = "48px sans-serif";
+        ctxLocal.fillStyle = brushColorInput.value;
+        // scale text size: map brush size to font size
+        const fontSize = Math.max(12, parseInt(brushSizeInput.value, 10) * 3);
+        ctxLocal.font = `${fontSize}px sans-serif`;
         ctxLocal.fillText(userText, p.x, p.y);
       }
     }
@@ -323,9 +404,8 @@ function setupCanvasHandlers(c, ctxLocal, displayScale) {
       ctxLocal.stroke();
     } else if (drawMode === "crop") {
       cropRect.x2 = p.x; cropRect.y2 = p.y;
-      // visual: draw overlay copy on top by resetting display canvas CSS? We'll draw a temporary overlay in a separate canvas or draw a dashed rectangle on top.
-      // For simplicity: redraw image and rectangle
-      redrawCanvasWithCropOverlay();
+      // redraw overlay: easiest is to redraw snapshot then rectangle
+      redrawCanvasFromLastSnapshotWithRect(ctxLocal, cropRect);
     }
   };
 
@@ -333,70 +413,75 @@ function setupCanvasHandlers(c, ctxLocal, displayScale) {
     isDrawing = false;
     try { c.releasePointerCapture(e.pointerId); } catch {}
     if (drawMode === "crop" && cropRect) {
-      finalizeCrop();
+      finalizeCrop(ctxLocal);
+    }
+    // after finishing an action, update control states
+    updateControlsState();
+  };
+
+  // keyboard inside canvas to change modes
+  c.onkeydown = (ev) => {
+    if (ev.key === "b") { drawMode = "brush"; toast("Brush mode"); }
+    if (ev.key === "t") { drawMode = "text"; toast("Text mode"); }
+    if (ev.key === "c") { drawMode = "crop"; toast("Crop mode"); }
+    if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === "z") {
+      ev.preventDefault(); undo();
+    }
+    if ((ev.ctrlKey || ev.metaKey) && (ev.key.toLowerCase() === "y" || (ev.shiftKey && ev.key.toLowerCase() === "z"))) {
+      ev.preventDefault(); redo();
     }
   };
-
-  // helper to redraw base image then overlay crop rect
-  function redrawCanvasWithCropOverlay() {
-    // restore base by redrawing original image (assuming original image loaded into canvas at entry time)
-    // For complexity avoidance, we won't maintain history stack; cropping will use current canvas pixels
-    // clear and draw current pixel state back (we kept drawing directly on ctxLocal)
-    // draw dashed rect:
-    ctxLocal.save();
-    ctxLocal.setLineDash([8, 6]);
-    ctxLocal.strokeStyle = "#fff";
-    ctxLocal.lineWidth = 3;
-    const x = Math.min(cropRect.x1, cropRect.x2);
-    const y = Math.min(cropRect.y1, cropRect.y2);
-    const w = Math.abs(cropRect.x2 - cropRect.x1);
-    const h = Math.abs(cropRect.y2 - cropRect.y1);
-    // we just stroke rect on top
-    ctxLocal.strokeRect(x, y, w, h);
-    ctxLocal.restore();
-  }
-
-  function finalizeCrop() {
-    // compute crop rect in integer
-    const x = Math.round(Math.min(cropRect.x1, cropRect.x2));
-    const y = Math.round(Math.min(cropRect.y1, cropRect.y2));
-    const w = Math.round(Math.abs(cropRect.x2 - cropRect.x1));
-    const h = Math.round(Math.abs(cropRect.y2 - cropRect.y1));
-    if (w <= 10 || h <= 10) { cropRect = null; redrawCanvasNoOverlay(); return; }
-    // create temporary canvas and copy
-    const tmp = document.createElement("canvas");
-    tmp.width = w; tmp.height = h;
-    const tctx = tmp.getContext("2d");
-    tctx.drawImage(c, x, y, w, h, 0, 0, w, h);
-    // replace main canvas content with cropped content
-    c.width = w; c.height = h;
-    ctxLocal.clearRect(0, 0, w, h);
-    ctxLocal.drawImage(tmp, 0, 0);
-    // adjust display size
-    const viewportW = window.innerWidth;
-    const viewportH = window.innerHeight;
-    const fitScale = Math.min(viewportW / c.width, viewportH / c.height, 1);
-    c.style.width = (c.width * fitScale) + "px";
-    c.style.height = (c.height * fitScale) + "px";
-    cropRect = null;
-  }
-
-  function redrawCanvasNoOverlay() {
-    // do nothing: current ctx already has drawings; overlay removed
-    // if we had temporary overlay strokes, ideally we'd re-render from saved base image; skipped for simplicity
-  }
-
-  // expose small UI to switch drawMode quickly using keyboard:
-  c.onkeydown = (ev) => {
-    if (ev.key === "b") { drawMode = "brush"; c.style.cursor = "crosshair"; alert("Brush mode"); }
-    if (ev.key === "t") { drawMode = "text"; c.style.cursor = "text"; alert("Text mode"); }
-    if (ev.key === "c") { drawMode = "crop"; c.style.cursor = "crosshair"; alert("Crop mode: drag to select"); }
-  };
-
-  // quick on-screen small prompts (optional)
-  alert("Edit mode: b=Brush, t=Text, c=Crop. Click to draw/text. Save to export.");
 }
 
-// initial state
+// redraw canvas showing current pixel state + dashed crop rect (uses current ctx contents)
+function redrawCanvasFromLastSnapshotWithRect(ctxLocal, rect) {
+  // For simplicity, we assume ctxLocal contains the up-to-date drawing.
+  // We'll overlay rect on top.
+  // First, redraw base image (no history/undo applied here to avoid complexity)
+  // Then draw rect:
+  ctxLocal.save();
+  ctxLocal.setLineDash([8, 6]);
+  ctxLocal.strokeStyle = "#ffffff";
+  ctxLocal.lineWidth = 3;
+  const x = Math.min(rect.x1, rect.x2);
+  const y = Math.min(rect.y1, rect.y2);
+  const w = Math.abs(rect.x2 - rect.x1);
+  const h = Math.abs(rect.y2 - rect.y1);
+  // draw rectangle on top without clearing previous strokes (simple approach)
+  ctxLocal.strokeRect(x, y, w, h);
+  ctxLocal.restore();
+}
+
+// finalize crop
+function finalizeCrop(ctxLocal) {
+  if (!cropRect) return;
+  const x = Math.round(Math.min(cropRect.x1, cropRect.x2));
+  const y = Math.round(Math.min(cropRect.y1, cropRect.y2));
+  const w = Math.round(Math.abs(cropRect.x2 - cropRect.x1));
+  const h = Math.round(Math.abs(cropRect.y2 - cropRect.y1));
+  if (w <= 8 || h <= 8) { cropRect = null; return; }
+  const tmp = document.createElement("canvas");
+  tmp.width = w; tmp.height = h;
+  const tctx = tmp.getContext("2d");
+  tctx.drawImage(canvas, x, y, w, h, 0, 0, w, h);
+  // replace main canvas content
+  canvas.width = w; canvas.height = h;
+  ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, w, h);
+  ctx.drawImage(tmp, 0, 0);
+  // resize display
+  const viewportW = window.innerWidth;
+  const viewportH = window.innerHeight;
+  const fitScale = Math.min(viewportW / canvas.width, viewportH / canvas.height, 1);
+  canvas.style.width = (canvas.width * fitScale) + "px";
+  canvas.style.height = (canvas.height * fitScale) + "px";
+  cropRect = null;
+  // push final crop snapshot
+  try { const snap = ctx.getImageData(0,0,canvas.width,canvas.height); undoStack.push(snap); if (undoStack.length > UNDO_LIMIT) undoStack.shift(); } catch {}
+  redoStack = [];
+  updateControlsState();
+}
+
+// initial
 showImage();
 updateControlsState();
