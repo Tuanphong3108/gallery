@@ -8,22 +8,29 @@
 </head>
 <body>
   <div id="viewer">
+    <div id="topbar">
+      <span id="filename">Chưa có ảnh</span>
+      <div id="controls">
+        <button id="prev">⏮️</button>
+        <button id="next">⏭️</button>
+        <button id="zoom-in">🔍+</button>
+        <button id="zoom-out">🔍-</button>
+        <button id="rotate">🔄</button>
+      </div>
+    </div>
     <img id="image" alt="Image Viewer">
-    <div id="controls">
-      <button id="prev">⏮️</button>
-      <button id="next">⏭️</button>
-      <button id="zoom-in">🔍+</button>
-      <button id="zoom-out">🔍-</button>
-      <button id="rotate">🔄</button>
+    <div id="placeholder">
+      <p>Chưa có ảnh nào được mở</p>
+      <input type="file" id="fileInput" accept="image/*" multiple>
     </div>
   </div>
   <script src="viewer.js"></script>
   <script>
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("service-worker.js")
-    .then(() => console.log("Service Worker registered!"))
-    .catch(err => console.error("SW registration failed:", err));
-}
-</script>
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("service-worker.js")
+      .then(() => console.log("Service Worker registered!"))
+      .catch(err => console.error("SW registration failed:", err));
+  }
+  </script>
 </body>
 </html>
