@@ -41,10 +41,7 @@ html,body { height: 100%; margin: 0; background: #000; color: #fff; font-family:
   white-space: nowrap;
   overflow: hidden;
 }
-#filename:focus {
-  outline: none;
-  border-bottom: 1px solid #888;
-}
+#filename:focus { outline: none; border-bottom: 1px solid #888; }
 
 #controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 #controls button {
@@ -88,7 +85,6 @@ html,body { height: 100%; margin: 0; background: #000; color: #fff; font-family:
   z-index: 20;
 }
 #placeholder p { margin: 0 0 12px; font-size: 18px; }
-#fileInput { display: none; }
 #uploadBtn {
   background: rgba(255,255,255,0.06);
   color: #fff;
@@ -148,18 +144,9 @@ html,body { height: 100%; margin: 0; background: #000; color: #fff; font-family:
 
 /* View mode */
 body.view-mode #controls button:not(#view):not(#edit),
-body.view-mode #controls input {
-  display: none;
-}
+body.view-mode #controls input { display: none; }
 body.view-mode #controls #edit { display: inline-block; }
-body.view-mode #filename {
-  pointer-events: none;
-  background: #eee;
-  color: #666;
-}
+body.view-mode #filename { pointer-events: none; background: #eee; color: #666; }
 
 /* Fade animation */
-@keyframes fadeIn {
-  from {opacity:0; transform:scale(0.9);}
-  to {opacity:1; transform:scale(1);}
-}
+@keyframes fadeIn { from {opacity:0; transform:scale(0.9);} to {opacity:1; transform:scale(1);} }
