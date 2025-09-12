@@ -10,6 +10,7 @@ const filenameInput = document.getElementById("filename");
 const placeholder = document.getElementById("placeholder");
 const fileInput = document.getElementById("file-input");
 const viewer = document.getElementById("viewer");
+const cropBox = document.getElementById("cropBox");
 
 const canvas = document.createElement("canvas");
 const ctx = canvas.getContext("2d");
@@ -17,10 +18,14 @@ const ctx = canvas.getContext("2d");
 let drawing = false;
 let brushColor = "#ff0000";
 let brushSize = 5;
+
+let textColor = "#000000";
+let textSize = 24;
+
 let cropping = false;
 let cropStart = null;
 
-let mode = "none"; // "none", "pen", "crop", "view"
+let mode = "none"; // "pen", "crop", "view", "text"
 let isPanning = false;
 let panStart = { x: 0, y: 0 };
 let panOffset = { x: 0, y: 0 };
@@ -28,30 +33,24 @@ let panOffset = { x: 0, y: 0 };
 let pendingFilename = null;
 let previewDataUrl = null;
 
-// Hiển thị ảnh (reset pan, center)
+// ===== Hiển thị ảnh =====
 async function showImage(file) {
   const bitmap = await createImageBitmap(file);
-
   canvas.width = bitmap.width;
   canvas.height = bitmap.height;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(bitmap, 0, 0);
-
   img.src = canvas.toDataURL();
   img.style.display = "block";
-
   zoom = 1;
   rotation = 0;
-
-  setTimeout(() => centerImage(), 50);
-
+  img.onload = () => centerImage();
   filenameInput.value = file.name;
   placeholder.style.display = "none";
-
   saveHistory();
 }
 
-// Căn giữa ảnh trong viewer
+// ===== Căn giữa =====
 function centerImage() {
   const viewerRect = viewer.getBoundingClientRect();
   const imgRect = img.getBoundingClientRect();
@@ -60,22 +59,20 @@ function centerImage() {
   panOffset = { x: offsetX, y: offsetY };
   applyTransform();
 }
-
-// Apply transform
 function applyTransform() {
   img.style.transform = `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom}) rotate(${rotation}deg)`;
 }
 
-// Lịch sử undo/redo
+// ===== Lịch sử =====
 function saveHistory() {
   history.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
   if (history.length > 20) history.shift();
   redoStack = [];
 }
-function undo() { if (history.length > 1) { redoStack.push(history.pop()); ctx.putImageData(history.at(-1),0,0); img.src = canvas.toDataURL(); } }
-function redo() { if (redoStack.length) { const s=redoStack.pop(); history.push(s); ctx.putImageData(s,0,0); img.src = canvas.toDataURL(); } }
+function undo() { if (history.length > 1) { redoStack.push(history.pop()); ctx.putImageData(history.at(-1),0,0); img.src=canvas.toDataURL(); } }
+function redo() { if (redoStack.length) { const s=redoStack.pop(); history.push(s); ctx.putImageData(s,0,0); img.src=canvas.toDataURL(); } }
 
-// Render final image (with rotation)
+// ===== Render final =====
 function getFinalDataUrl() {
   const tempCanvas = document.createElement("canvas");
   const angleRad = rotation * Math.PI / 180;
@@ -90,9 +87,9 @@ function getFinalDataUrl() {
   return tempCanvas.toDataURL();
 }
 
-// Preview save
-function saveFile(){ if(!fileHandles.length) return alert("No file!"); pendingFilename=filenameInput.value||"image.png"; showPreview(true); }
-function saveFileAs(){ if(!fileHandles.length) return alert("No file!"); pendingFilename=filenameInput.value||"edited.png"; showPreview(false); }
+// ===== Preview Save =====
+function saveFile(){ if(!fileHandles.length)return alert("No file!"); pendingFilename=filenameInput.value||"image.png"; showPreview(true);}
+function saveFileAs(){ if(!fileHandles.length)return alert("No file!"); pendingFilename=filenameInput.value||"edited.png"; showPreview(false);}
 function showPreview(overwrite){
   previewDataUrl=getFinalDataUrl();
   document.getElementById("previewImg").src=previewDataUrl;
@@ -110,12 +107,25 @@ async function confirmSave(){
 }
 function cancelSave(){document.getElementById("previewPopup").style.display="none";pendingFilename=null;previewDataUrl=null;}
 
-// Mouse pan
-img.addEventListener("mousedown", e=>{ if(mode==="view"){isPanning=true;panStart={x:e.clientX,y:e.clientY};}});
-img.addEventListener("mousemove", e=>{ if(mode==="view"&&isPanning){let dx=e.clientX-panStart.x,dy=e.clientY-panStart.y;panOffset.x+=dx;panOffset.y+=dy;applyTransform();panStart={x:e.clientX,y:e.clientY};}});
-img.addEventListener("mouseup", ()=>{ if(mode==="view") isPanning=false; });
+// ===== Mouse events =====
+img.addEventListener("mousedown", e=>{
+  if(mode==="pen"){drawing=true;ctx.beginPath();ctx.moveTo(e.offsetX,e.offsetY);}
+  else if(mode==="crop"){cropping=true;cropStart={x:e.offsetX,y:e.offsetY};cropBox.style.left=`${e.offsetX}px`;cropBox.style.top=`${e.offsetY}px`;cropBox.style.width="0px";cropBox.style.height="0px";cropBox.style.display="block";}
+  else if(mode==="view"){isPanning=true;panStart={x:e.clientX,y:e.clientY};}
+  else if(mode==="text"){const text=prompt("Enter text:");if(text){ctx.fillStyle=textColor;ctx.font=`${textSize}px Arial`;ctx.fillText(text,e.offsetX,e.offsetY);img.src=canvas.toDataURL();saveHistory();}}
+});
+img.addEventListener("mousemove", e=>{
+  if(mode==="pen"&&drawing){ctx.lineTo(e.offsetX,e.offsetY);ctx.strokeStyle=brushColor;ctx.lineWidth=brushSize;ctx.lineCap="round";ctx.stroke();img.src=canvas.toDataURL();}
+  else if(mode==="crop"&&cropping&&cropStart){const w=e.offsetX-cropStart.x,h=e.offsetY-cropStart.y;cropBox.style.left=`${Math.min(e.offsetX,cropStart.x)}px`;cropBox.style.top=`${Math.min(e.offsetY,cropStart.y)}px`;cropBox.style.width=`${Math.abs(w)}px`;cropBox.style.height=`${Math.abs(h)}px`;}
+  else if(mode==="view"&&isPanning){let dx=e.clientX-panStart.x,dy=e.clientY-panStart.y;panOffset.x+=dx;panOffset.y+=dy;applyTransform();panStart={x:e.clientX,y:e.clientY};}
+});
+img.addEventListener("mouseup", e=>{
+  if(mode==="pen"&&drawing){drawing=false;saveHistory();}
+  else if(mode==="crop"&&cropping&&cropStart){const x=parseInt(cropBox.style.left),y=parseInt(cropBox.style.top),w=parseInt(cropBox.style.width),h=parseInt(cropBox.style.height);const cropped=ctx.getImageData(x,y,w,h);canvas.width=w;canvas.height=h;ctx.putImageData(cropped,0,0);img.src=canvas.toDataURL();saveHistory();cropBox.style.display="none";cropping=false;}
+  else if(mode==="view"&&isPanning){isPanning=false;}
+});
 
-// Controls
+// ===== Controls =====
 document.getElementById("zoom-in").onclick=()=>{zoom+=0.2;applyTransform();};
 document.getElementById("zoom-out").onclick=()=>{zoom=Math.max(0.2,zoom-0.2);applyTransform();};
 document.getElementById("rotate").onclick=()=>{rotation=(rotation+90)%360;applyTransform();};
@@ -127,13 +137,19 @@ document.getElementById("save-as").onclick=saveFileAs;
 
 document.getElementById("brush-color").oninput=e=>{brushColor=e.target.value;mode="pen";};
 document.getElementById("brush-size").oninput=e=>{brushSize=e.target.value;mode="pen";};
+
+document.getElementById("text-color").oninput=e=>{textColor=e.target.value;mode="text";};
+document.getElementById("text-size").oninput=e=>{textSize=parseInt(e.target.value);mode="text";};
+
 document.getElementById("crop").onclick=()=>{mode="crop";};
+document.getElementById("text").onclick=()=>{mode="text";};
+
 document.getElementById("view").onclick=()=>{mode="view";document.body.classList.add("view-mode");document.getElementById("edit").style.display="inline-block";};
 document.getElementById("edit").onclick=()=>{mode="none";document.body.classList.remove("view-mode");document.getElementById("edit").style.display="none";};
 
-// Upload
+// ===== Upload =====
 document.getElementById("upload").onclick=()=>fileInput.click();
 fileInput.onchange=()=>{const files=Array.from(fileInput.files);if(!files.length)return;fileHandles=files.map(f=>({getFile:async()=>f}));currentIndex=0;showImage(files[0]);};
 
-// File Handling API
+// ===== File Handling API =====
 if("launchQueue" in window){launchQueue.setConsumer(async p=>{if(!p.files.length)return;fileHandles=p.files;currentIndex=0;const file=await fileHandles[0].getFile();showImage(file);});}
