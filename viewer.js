@@ -20,6 +20,11 @@ let cropping = false;
 let cropStart = null;
 let cropRect = null;
 
+let mode = "none"; // "none", "pen", "crop", "view"
+let isPanning = false;
+let panStart = { x: 0, y: 0 };
+let panOffset = { x: 0, y: 0 };
+
 // Hiển thị ảnh
 async function showImage(file) {
   const bitmap = await createImageBitmap(file);
@@ -31,7 +36,7 @@ async function showImage(file) {
 
   img.src = canvas.toDataURL();
   img.style.display = "block";
-  img.style.transform = `scale(${zoom}) rotate(${rotation}deg)`;
+  img.style.transform = `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom}) rotate(${rotation}deg)`;
 
   filenameLabel.textContent = file.name;
   placeholder.style.display = "none";
@@ -93,33 +98,44 @@ async function saveFileAs() {
   }
 }
 
-// Brush
+// Mouse events
 img.addEventListener("mousedown", e => {
-  if (!drawing && !cropping) {
+  if (mode === "pen") {
     drawing = true;
     ctx.beginPath();
     ctx.moveTo(e.offsetX, e.offsetY);
-  } else if (cropping) {
+  } else if (mode === "crop") {
+    cropping = true;
     cropStart = { x: e.offsetX, y: e.offsetY };
+  } else if (mode === "view") {
+    isPanning = true;
+    panStart = { x: e.clientX, y: e.clientY };
   }
 });
 
 img.addEventListener("mousemove", e => {
-  if (drawing && !cropping) {
+  if (mode === "pen" && drawing) {
     ctx.lineTo(e.offsetX, e.offsetY);
     ctx.strokeStyle = brushColor;
     ctx.lineWidth = brushSize;
     ctx.lineCap = "round";
     ctx.stroke();
     img.src = canvas.toDataURL();
+  } else if (mode === "view" && isPanning) {
+    let dx = e.clientX - panStart.x;
+    let dy = e.clientY - panStart.y;
+    panOffset.x += dx;
+    panOffset.y += dy;
+    img.style.transform = `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom}) rotate(${rotation}deg)`;
+    panStart = { x: e.clientX, y: e.clientY };
   }
 });
 
 img.addEventListener("mouseup", e => {
-  if (drawing) {
+  if (mode === "pen" && drawing) {
     drawing = false;
     saveHistory();
-  } else if (cropping && cropStart) {
+  } else if (mode === "crop" && cropping && cropStart) {
     const w = e.offsetX - cropStart.x;
     const h = e.offsetY - cropStart.y;
     const cropped = ctx.getImageData(cropStart.x, cropStart.y, w, h);
@@ -129,21 +145,40 @@ img.addEventListener("mouseup", e => {
     img.src = canvas.toDataURL();
     saveHistory();
     cropping = false;
+  } else if (mode === "view" && isPanning) {
+    isPanning = false;
   }
 });
 
 // Controls
-document.getElementById("zoom-in").onclick = () => { zoom += 0.2; img.style.transform = `scale(${zoom}) rotate(${rotation}deg)`; };
-document.getElementById("zoom-out").onclick = () => { zoom = Math.max(0.2, zoom - 0.2); img.style.transform = `scale(${zoom}) rotate(${rotation}deg)`; };
-document.getElementById("rotate").onclick = () => { rotation = (rotation + 90) % 360; img.style.transform = `scale(${zoom}) rotate(${rotation}deg)`; };
+document.getElementById("zoom-in").onclick = () => {
+  zoom += 0.2;
+  img.style.transform = `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom}) rotate(${rotation}deg)`;
+};
+document.getElementById("zoom-out").onclick = () => {
+  zoom = Math.max(0.2, zoom - 0.2);
+  img.style.transform = `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom}) rotate(${rotation}deg)`;
+};
+document.getElementById("rotate").onclick = () => {
+  rotation = (rotation + 90) % 360;
+  img.style.transform = `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom}) rotate(${rotation}deg)`;
+};
 
 document.getElementById("undo").onclick = undo;
 document.getElementById("redo").onclick = redo;
 document.getElementById("save").onclick = saveFile;
 document.getElementById("save-as").onclick = saveFileAs;
-document.getElementById("brush-color").oninput = e => brushColor = e.target.value;
-document.getElementById("brush-size").oninput = e => brushSize = e.target.value;
-document.getElementById("crop").onclick = () => { cropping = true; };
+
+document.getElementById("brush-color").oninput = e => {
+  brushColor = e.target.value;
+  mode = "pen";
+};
+document.getElementById("brush-size").oninput = e => {
+  brushSize = e.target.value;
+  mode = "pen";
+};
+document.getElementById("crop").onclick = () => { mode = "crop"; };
+document.getElementById("view").onclick = () => { mode = "view"; };
 
 // Upload fallback
 fileInput.onchange = () => {
