@@ -1,60 +1,61 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
   <meta charset="UTF-8">
   <title>Gallery</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
 </head>
 <body>
-  <div id="viewer">
-    <!-- Top bar -->
-    <div id="topbar">
-      <div id="lefttop"><span id="filename">No file</span></div>
-      <div id="controls">
-        <button id="view">👁️ View</button>
-        <button id="upload">📂 Upload</button>
-        <button id="zoom-in">🔍+</button>
-        <button id="zoom-out">🔍-</button>
-        <button id="rotate">🔄</button>
-        <button id="undo">↩️ Undo</button>
-        <button id="redo">↪️ Redo</button>
-        <div class="mini">
-          <label>✏️</label>
-          <input type="color" id="brush-color" value="#ff0000">
-          <input type="range" id="brush-size" min="1" max="20" value="5">
-        </div>
-        <button id="crop">✂️ Crop</button>
-        <button id="save">💾 Save</button>
-        <button id="save-as">💾 Save As</button>
-      </div>
-    </div>
+  <!-- Toolbar -->
+  <div id="toolbar">
+    <span id="filename">No image loaded</span>
+    <button id="upload">📂 Upload</button>
+    <input type="file" id="file-input" accept="image/*" multiple hidden>
+    <button id="zoom-in">🔍+</button>
+    <button id="zoom-out">🔍-</button>
+    <button id="rotate">🔄</button>
+    <input type="color" id="brush-color" value="#ff0000">
+    <input type="range" id="brush-size" min="1" max="20" value="5">
+    <button id="crop">✂️ Crop</button>
+    <button id="view">👁️ View</button>
+    <button id="undo">↩️ Undo</button>
+    <button id="redo">↪️ Redo</button>
+    <button id="save">💾 Save</button>
+    <button id="save-as">📥 Save As</button>
+  </div>
 
-    <!-- Stage -->
-    <div id="stage">
-      <img id="image" alt="">
-      <div id="placeholder">
-        <p>No image loaded</p>
-        <button id="uploadBtn">Upload files</button>
-        <input type="file" id="file-input" accept="image/*" multiple>
+  <!-- Viewer -->
+  <div id="viewer">
+    <span id="placeholder">No image selected</span>
+    <img id="image" alt="Image Viewer">
+  </div>
+
+  <!-- Popup preview -->
+  <div id="previewPopup" style="
+    display:none;
+    position:fixed;
+    top:0;left:0;width:100%;height:100%;
+    background:rgba(0,0,0,0.8);
+    justify-content:center;align-items:center;
+    flex-direction:column;z-index:999;
+  ">
+    <div style="background:#222;padding:10px;border-radius:10px;max-width:90%;max-height:90%;text-align:center">
+      <h3 style="color:#fff">Preview</h3>
+      <img id="previewImg" style="max-width:100%;max-height:70vh;border:2px solid #555">
+      <p id="previewNote" style="color:#aaa;font-size:14px;margin-top:5px"></p>
+      <div style="margin-top:10px">
+        <button onclick="confirmSave()">✅ Confirm</button>
+        <button onclick="cancelSave()">❌ Cancel</button>
       </div>
     </div>
   </div>
 
   <script src="viewer.js"></script>
   <script>
-    // Hook upload buttons
-    const uploadBtn = document.getElementById("uploadBtn");
-    const uploadTop = document.getElementById("upload");
-    const fileInput = document.getElementById("file-input");
-    uploadBtn.onclick = () => fileInput.click();
-    uploadTop.onclick = () => fileInput.click();
-
-    // Register service worker
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("service-worker.js")
-        .then(() => console.log("Service Worker registered"))
+        .then(() => console.log("Service Worker registered!"))
         .catch(err => console.error("SW registration failed:", err));
     }
   </script>
