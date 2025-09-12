@@ -29,12 +29,18 @@ async function showImage() {
     const file = await fileHandles[currentIndex].getFile();
 
     if (file.size === 0 || !file.type.startsWith("image/")) {
-      showError(file.size === 0 ? "This file is empty" : "Unsupported file type");
-      return;
-    }
+      // Ẩn toolbar
+      document.getElementById("topbar").style.display = "none";
 
-    if (file.type === "image/gif") {
-      showError("GIF files are not supported right now");
+      // Hiện thông báo 🚫
+      const placeholder = document.getElementById("placeholder");
+      placeholder.style.display = "flex";
+      placeholder.innerHTML = `
+        <p style="font-size:48px;">🚫</p>
+        <p>${file.size === 0 ? "This file is empty" : "Unsupported file type"}</p>
+        <button id="closeApp">Close app</button>
+      `;
+      document.getElementById("closeApp").onclick = () => window.close();
       return;
     }
 
@@ -48,18 +54,6 @@ async function showImage() {
     console.error("Error loading image:", err);
     alert("Could not load file.");
   }
-}
-
-function showError(message) {
-  document.getElementById("topbar").style.display = "none";
-  const placeholder = document.getElementById("placeholder");
-  placeholder.style.display = "flex";
-  placeholder.innerHTML = `
-    <p style="font-size:48px;">🚫</p>
-    <p>${message}</p>
-    <button id="closeApp">Close app</button>
-  `;
-  document.getElementById("closeApp").onclick = () => window.close();
 }
 
 // Upload fallback
