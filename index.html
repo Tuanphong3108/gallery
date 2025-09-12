@@ -7,65 +7,47 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
-  <!-- Topbar -->
-  <div id="topbar">
-    <input id="filename" value="No image loaded">
-    <div id="controls">
-      <button id="upload">📂 Upload</button>
-      <input type="file" id="file-input" accept="image/*" multiple hidden>
+  <div id="viewer">
+    <!-- Topbar -->
+    <div id="topbar">
+      <div id="lefttop">
+        <input id="filename" value="No file" />
+      </div>
+      <div id="controls">
+        <!-- View/Edit -->
+        <button id="view">👁️ View</button>
+        <button id="edit" style="display:none;">✏️ Edit</button>
 
-      <button id="zoom-in">🔍+</button>
-      <button id="zoom-out">🔍-</button>
-      <button id="rotate">🔄</button>
+        <!-- Tools -->
+        <button id="zoom-in">🔍+</button>
+        <button id="zoom-out">🔍-</button>
+        <button id="rotate">🔄</button>
+        <button id="brush">🖌️ Brush</button>
+        <button id="text">🔤 Text</button>
+        <input id="textSize" type="number" value="24" min="8" max="128" />
+        <button id="crop">✂️ Crop</button>
+        <div class="mini">
+          <label>Size:</label>
+          <input type="range" id="brushSize" min="1" max="50" value="5">
+        </div>
+        <div class="mini">
+          <label>Color:</label>
+          <input type="color" id="color" value="#ff0000">
+        </div>
 
-      <button id="brush">🖌️ Brush</button>
-      <span class="mini">
-        <label>Brush</label>
-        <input type="color" id="brush-color" value="#ff0000">
-        <input type="range" id="brush-size" min="1" max="20" value="5">
-      </span>
-
-      <span class="mini">
-        <label>Text</label>
-        <input type="color" id="text-color" value="#000000">
-        <input type="range" id="text-size" min="10" max="100" value="24">
-      </span>
-
-      <button id="crop">✂️ Crop</button>
-      <button id="text">🅰️ Text</button>
-
-      <button id="undo">↩️ Undo</button>
-      <button id="redo">↪️ Redo</button>
-
-      <button id="save">💾 Save</button>
-      <button id="save-as">📥 Save As</button>
-
-      <button id="view">👁️ View</button>
-      <button id="edit" style="display:none">✏️ Edit</button>
+        <!-- Save -->
+        <button id="save">💾 Save</button>
+        <button id="saveAs">📂 Save As</button>
+      </div>
     </div>
-  </div>
 
-  <!-- Stage -->
-  <div id="stage">
-    <img id="image" alt="Image Viewer">
-    <div id="placeholder">
-      <p style="font-size:48px;">📂</p>
-      <p>No image loaded</p>
-      <button id="uploadBtn">Upload</button>
-    </div>
-    <div id="cropBox"></div>
-  </div>
-
-  <!-- Popup preview Save -->
-  <div id="previewPopup">
-    <div class="popup-inner">
-      <h3>Preview</h3>
-      <img id="previewImg">
-      <p id="previewNote"></p>
-      <p id="savingStatus" style="display:none;color:#0f0;">Saving...</p>
-      <div>
-        <button onclick="confirmSave()">✅ Confirm</button>
-        <button onclick="cancelSave()">❌ Cancel</button>
+    <!-- Stage -->
+    <div id="stage">
+      <img id="image" alt="Image Viewer">
+      <div id="placeholder">
+        <p>No image loaded</p>
+        <button id="uploadBtn">Upload files</button>
+        <input type="file" id="fileInput" accept="image/*">
       </div>
     </div>
   </div>
