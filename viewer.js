@@ -18,12 +18,14 @@ let brushColor = "#ff0000";
 let brushSize = 5;
 let cropping = false;
 let cropStart = null;
-let cropRect = null;
 
 let mode = "none"; // "none", "pen", "crop", "view"
 let isPanning = false;
 let panStart = { x: 0, y: 0 };
 let panOffset = { x: 0, y: 0 };
+
+let pendingFilename = null;
+let previewDataUrl = null;
 
 // Hiển thị ảnh
 async function showImage(file) {
@@ -68,34 +70,69 @@ function redo() {
   }
 }
 
-// Save trực tiếp (ghi file)
-async function saveFile() {
-  if (!fileHandles.length) return;
-  const fileHandle = fileHandles[currentIndex];
-  try {
-    const writable = await fileHandle.createWritable();
-    await writable.write(await (await fetch(canvas.toDataURL())).blob());
-    await writable.close();
-    alert("Saved!");
-  } catch (e) {
-    console.error("Save failed:", e);
-    alert("Save failed, try Save As.");
-  }
+// Preview Save
+function saveFile() {
+  if (!fileHandles.length) return alert("No file!");
+  pendingFilename = filenameLabel.textContent;
+  showPreview(true);
 }
 
-// Save As
-async function saveFileAs() {
-  try {
-    const handle = await showSaveFilePicker({
-      types: [{ description: "Image file", accept: { "image/png": [".png"], "image/jpeg": [".jpg", ".jpeg"] } }]
-    });
-    const writable = await handle.createWritable();
-    await writable.write(await (await fetch(canvas.toDataURL())).blob());
-    await writable.close();
-    alert("Saved As!");
-  } catch (e) {
-    console.error("Save As canceled or failed:", e);
+function saveFileAs() {
+  if (!fileHandles.length) return alert("No file!");
+  pendingFilename = "edited_" + filenameLabel.textContent;
+  showPreview(false);
+}
+
+function showPreview(overwrite) {
+  const tempCanvas = document.createElement("canvas");
+  tempCanvas.width = canvas.width;
+  tempCanvas.height = canvas.height;
+  const tempCtx = tempCanvas.getContext("2d");
+
+  tempCtx.drawImage(canvas, 0, 0);
+  previewDataUrl = tempCanvas.toDataURL();
+
+  document.getElementById("previewImg").src = previewDataUrl;
+
+  // Thông báo mode
+  if (overwrite && fileHandles[currentIndex].createWritable) {
+    document.getElementById("previewNote").textContent =
+      "This will overwrite the original file.";
+  } else {
+    document.getElementById("previewNote").textContent =
+      "This will download a new file.";
   }
+
+  document.getElementById("previewPopup").style.display = "flex";
+}
+
+async function confirmSave() {
+  if (fileHandles.length && fileHandles[currentIndex].createWritable) {
+    // Ghi đè file gốc
+    try {
+      const fileHandle = fileHandles[currentIndex];
+      const writable = await fileHandle.createWritable();
+      await writable.write(await (await fetch(previewDataUrl)).blob());
+      await writable.close();
+      alert("File overwritten successfully!");
+    } catch (e) {
+      console.error("Save failed:", e);
+      alert("Save failed, try Save As.");
+    }
+  } else {
+    // Fallback: tải file mới
+    const link = document.createElement("a");
+    link.download = pendingFilename;
+    link.href = previewDataUrl;
+    link.click();
+  }
+  cancelSave();
+}
+
+function cancelSave() {
+  document.getElementById("previewPopup").style.display = "none";
+  pendingFilename = null;
+  previewDataUrl = null;
 }
 
 // Mouse events
@@ -181,6 +218,7 @@ document.getElementById("crop").onclick = () => { mode = "crop"; };
 document.getElementById("view").onclick = () => { mode = "view"; };
 
 // Upload fallback
+document.getElementById("upload").onclick = () => fileInput.click();
 fileInput.onchange = () => {
   const files = Array.from(fileInput.files);
   if (!files.length) return;
