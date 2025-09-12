@@ -131,3 +131,11 @@ body.view-mode #filename {
   to {opacity:1; transform:scale(1);}
 }
 
+#cropBox {
+  position: absolute;
+  border: 2px dashed #fff;
+  background: rgba(0,0,0,0.2);
+  display: none;
+  pointer-events: none;
+  z-index: 55; /* trên ảnh, dưới topbar */
+}
