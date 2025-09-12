@@ -16,7 +16,7 @@
     {
       "action": "index.html",
       "accept": {
-        "image/*": [".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".ico", ".svg"]
+        "image/*": [".png", ".jpg", ".jpeg", ".webp", ".bmp", ".ico", ".svg"]
       }
     }
   ]
