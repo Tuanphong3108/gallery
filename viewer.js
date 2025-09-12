@@ -4,32 +4,24 @@ let zoom = 1;
 let rotation = 0;
 let history = [];
 let redoStack = [];
-let cropping = false;
-let cropStart = null;
-let cropRect = null;
 
 const img = document.getElementById("image");
 const filenameLabel = document.getElementById("filename");
-const upload = document.getElementById("upload");
+const placeholder = document.getElementById("placeholder");
 const fileInput = document.getElementById("file-input");
 
 const canvas = document.createElement("canvas");
 const ctx = canvas.getContext("2d");
+
 let drawing = false;
 let brushColor = "#ff0000";
 let brushSize = 5;
-
-const overlay = document.createElement("div");
-overlay.style.position = "absolute";
-overlay.style.border = "2px dashed #0f0";
-overlay.style.pointerEvents = "none";
-document.getElementById("viewer").appendChild(overlay);
+let cropping = false;
+let cropStart = null;
+let cropRect = null;
 
 // Hiển thị ảnh
-async function showImage() {
-  if (!fileHandles.length) return;
-
-  const file = await fileHandles[currentIndex].getFile();
+async function showImage(file) {
   const bitmap = await createImageBitmap(file);
 
   canvas.width = bitmap.width;
@@ -42,15 +34,15 @@ async function showImage() {
   img.style.transform = `scale(${zoom}) rotate(${rotation}deg)`;
 
   filenameLabel.textContent = file.name;
-  upload.style.display = "none";
+  placeholder.style.display = "none";
 
-  saveHistory(); // lưu trạng thái đầu
+  saveHistory();
 }
 
-// Lịch sử để undo/redo
+// Lưu lịch sử để undo/redo
 function saveHistory() {
   history.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
-  if (history.length > 20) history.shift(); // giữ 20 bước
+  if (history.length > 20) history.shift();
   redoStack = [];
 }
 
@@ -71,7 +63,7 @@ function redo() {
   }
 }
 
-// Save trực tiếp
+// Save trực tiếp (ghi file)
 async function saveFile() {
   if (!fileHandles.length) return;
   const fileHandle = fileHandles[currentIndex];
@@ -90,12 +82,7 @@ async function saveFile() {
 async function saveFileAs() {
   try {
     const handle = await showSaveFilePicker({
-      types: [
-        {
-          description: "Image file",
-          accept: { "image/png": [".png"], "image/jpeg": [".jpg", ".jpeg"] }
-        }
-      ]
+      types: [{ description: "Image file", accept: { "image/png": [".png"], "image/jpeg": [".jpg", ".jpeg"] } }]
     });
     const writable = await handle.createWritable();
     await writable.write(await (await fetch(canvas.toDataURL())).blob());
@@ -106,32 +93,49 @@ async function saveFileAs() {
   }
 }
 
-// Brush vẽ
+// Brush
 img.addEventListener("mousedown", e => {
-  drawing = true;
-  ctx.beginPath();
-  ctx.moveTo(e.offsetX, e.offsetY);
+  if (!drawing && !cropping) {
+    drawing = true;
+    ctx.beginPath();
+    ctx.moveTo(e.offsetX, e.offsetY);
+  } else if (cropping) {
+    cropStart = { x: e.offsetX, y: e.offsetY };
+  }
 });
+
 img.addEventListener("mousemove", e => {
-  if (!drawing) return;
-  ctx.lineTo(e.offsetX, e.offsetY);
-  ctx.strokeStyle = brushColor;
-  ctx.lineWidth = brushSize;
-  ctx.lineCap = "round";
-  ctx.stroke();
-  img.src = canvas.toDataURL();
+  if (drawing && !cropping) {
+    ctx.lineTo(e.offsetX, e.offsetY);
+    ctx.strokeStyle = brushColor;
+    ctx.lineWidth = brushSize;
+    ctx.lineCap = "round";
+    ctx.stroke();
+    img.src = canvas.toDataURL();
+  }
 });
-img.addEventListener("mouseup", () => {
+
+img.addEventListener("mouseup", e => {
   if (drawing) {
     drawing = false;
     saveHistory();
+  } else if (cropping && cropStart) {
+    const w = e.offsetX - cropStart.x;
+    const h = e.offsetY - cropStart.y;
+    const cropped = ctx.getImageData(cropStart.x, cropStart.y, w, h);
+    canvas.width = Math.abs(w);
+    canvas.height = Math.abs(h);
+    ctx.putImageData(cropped, 0, 0);
+    img.src = canvas.toDataURL();
+    saveHistory();
+    cropping = false;
   }
 });
 
 // Controls
-document.getElementById("zoom-in").onclick = () => { zoom += 0.2; showImage(); };
-document.getElementById("zoom-out").onclick = () => { zoom = Math.max(0.2, zoom - 0.2); showImage(); };
-document.getElementById("rotate").onclick = () => { rotation = (rotation + 90) % 360; showImage(); };
+document.getElementById("zoom-in").onclick = () => { zoom += 0.2; img.style.transform = `scale(${zoom}) rotate(${rotation}deg)`; };
+document.getElementById("zoom-out").onclick = () => { zoom = Math.max(0.2, zoom - 0.2); img.style.transform = `scale(${zoom}) rotate(${rotation}deg)`; };
+document.getElementById("rotate").onclick = () => { rotation = (rotation + 90) % 360; img.style.transform = `scale(${zoom}) rotate(${rotation}deg)`; };
 
 document.getElementById("undo").onclick = undo;
 document.getElementById("redo").onclick = redo;
@@ -139,81 +143,24 @@ document.getElementById("save").onclick = saveFile;
 document.getElementById("save-as").onclick = saveFileAs;
 document.getElementById("brush-color").oninput = e => brushColor = e.target.value;
 document.getElementById("brush-size").oninput = e => brushSize = e.target.value;
+document.getElementById("crop").onclick = () => { cropping = true; };
 
-// Upload fallback (nếu không mở qua File Handling API)
+// Upload fallback
 fileInput.onchange = () => {
-  fileHandles = Array.from(fileInput.files).map(f => ({
-    getFile: async () => f
-  }));
+  const files = Array.from(fileInput.files);
+  if (!files.length) return;
+  fileHandles = files.map(f => ({ getFile: async () => f }));
   currentIndex = 0;
-  showImage();
+  showImage(files[0]);
 };
 
-// File Handling API (ChromeOS / Edge / Windows)
+// File Handling API
 if ("launchQueue" in window) {
   launchQueue.setConsumer(async (launchParams) => {
     if (!launchParams.files.length) return;
     fileHandles = launchParams.files;
     currentIndex = 0;
-    showImage();
+    const file = await fileHandles[0].getFile();
+    showImage(file);
   });
 }
-
-
-// Bật chế độ crop
-document.getElementById("crop").onclick = () => {
-  cropping = !cropping;
-  overlay.style.display = cropping ? "block" : "none";
-  if (!cropping) {
-    overlay.style.width = "0";
-    overlay.style.height = "0";
-  }
-};
-
-// Khi click chuột để chọn vùng crop
-img.addEventListener("mousedown", e => {
-  if (cropping) {
-    cropStart = { x: e.offsetX, y: e.offsetY };
-    overlay.style.left = `${e.offsetX}px`;
-    overlay.style.top = `${e.offsetY}px`;
-    overlay.style.width = "0";
-    overlay.style.height = "0";
-  }
-});
-
-// Kéo chuột để vẽ khung crop
-img.addEventListener("mousemove", e => {
-  if (cropping && cropStart) {
-    const x = Math.min(cropStart.x, e.offsetX);
-    const y = Math.min(cropStart.y, e.offsetY);
-    const w = Math.abs(cropStart.x - e.offsetX);
-    const h = Math.abs(cropStart.y - e.offsetY);
-
-    overlay.style.left = `${x}px`;
-    overlay.style.top = `${y}px`;
-    overlay.style.width = `${w}px`;
-    overlay.style.height = `${h}px`;
-
-    cropRect = { x, y, w, h };
-  }
-});
-
-// Thả chuột để xác nhận crop
-img.addEventListener("mouseup", () => {
-  if (cropping && cropRect) {
-    const { x, y, w, h } = cropRect;
-    const cropped = ctx.getImageData(x, y, w, h);
-
-    canvas.width = w;
-    canvas.height = h;
-    ctx.putImageData(cropped, 0, 0);
-
-    img.src = canvas.toDataURL();
-    saveHistory();
-
-    overlay.style.width = "0";
-    overlay.style.height = "0";
-    cropping = false;
-    cropRect = null;
-  }
-});
