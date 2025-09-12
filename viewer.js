@@ -6,7 +6,7 @@ let history = [];
 let redoStack = [];
 
 const img = document.getElementById("image");
-const filenameLabel = document.getElementById("filename");
+const filenameInput = document.getElementById("filename");
 const placeholder = document.getElementById("placeholder");
 const fileInput = document.getElementById("file-input");
 
@@ -27,7 +27,7 @@ let panOffset = { x: 0, y: 0 };
 let pendingFilename = null;
 let previewDataUrl = null;
 
-// Hiển thị ảnh
+// Hiển thị ảnh (reset pan, center)
 async function showImage(file) {
   const bitmap = await createImageBitmap(file);
 
@@ -38,12 +38,22 @@ async function showImage(file) {
 
   img.src = canvas.toDataURL();
   img.style.display = "block";
-  img.style.transform = `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom}) rotate(${rotation}deg)`;
 
-  filenameLabel.textContent = file.name;
+  // reset pan/zoom/rotation
+  zoom = 1;
+  rotation = 0;
+  panOffset = { x: 0, y: 0 };
+  centerImage();
+
+  filenameInput.value = file.name;
   placeholder.style.display = "none";
 
   saveHistory();
+}
+
+// Căn giữa ảnh
+function centerImage() {
+  img.style.transform = `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom}) rotate(${rotation}deg)`;
 }
 
 // Lưu lịch sử để undo/redo
@@ -70,31 +80,42 @@ function redo() {
   }
 }
 
+// Render ảnh cuối cùng với rotation vào dataURL
+function getFinalDataUrl() {
+  const tempCanvas = document.createElement("canvas");
+  const angleRad = rotation * Math.PI / 180;
+
+  let newW = Math.abs(canvas.width * Math.cos(angleRad)) + Math.abs(canvas.height * Math.sin(angleRad));
+  let newH = Math.abs(canvas.width * Math.sin(angleRad)) + Math.abs(canvas.height * Math.cos(angleRad));
+
+  tempCanvas.width = newW;
+  tempCanvas.height = newH;
+  const tempCtx = tempCanvas.getContext("2d");
+
+  tempCtx.translate(newW / 2, newH / 2);
+  tempCtx.rotate(angleRad);
+  tempCtx.drawImage(canvas, -canvas.width / 2, -canvas.height / 2);
+
+  return tempCanvas.toDataURL();
+}
+
 // Preview Save
 function saveFile() {
   if (!fileHandles.length) return alert("No file!");
-  pendingFilename = filenameLabel.textContent;
+  pendingFilename = filenameInput.value || "image.png";
   showPreview(true);
 }
 
 function saveFileAs() {
   if (!fileHandles.length) return alert("No file!");
-  pendingFilename = "edited_" + filenameLabel.textContent;
+  pendingFilename = filenameInput.value || "edited.png";
   showPreview(false);
 }
 
 function showPreview(overwrite) {
-  const tempCanvas = document.createElement("canvas");
-  tempCanvas.width = canvas.width;
-  tempCanvas.height = canvas.height;
-  const tempCtx = tempCanvas.getContext("2d");
-
-  tempCtx.drawImage(canvas, 0, 0);
-  previewDataUrl = tempCanvas.toDataURL();
-
+  previewDataUrl = getFinalDataUrl();
   document.getElementById("previewImg").src = previewDataUrl;
 
-  // Thông báo mode
   if (overwrite && fileHandles[currentIndex].createWritable) {
     document.getElementById("previewNote").textContent =
       "This will overwrite the original file.";
@@ -108,7 +129,6 @@ function showPreview(overwrite) {
 
 async function confirmSave() {
   if (fileHandles.length && fileHandles[currentIndex].createWritable) {
-    // Ghi đè file gốc
     try {
       const fileHandle = fileHandles[currentIndex];
       const writable = await fileHandle.createWritable();
@@ -120,7 +140,6 @@ async function confirmSave() {
       alert("Save failed, try Save As.");
     }
   } else {
-    // Fallback: tải file mới
     const link = document.createElement("a");
     link.download = pendingFilename;
     link.href = previewDataUrl;
@@ -135,85 +154,18 @@ function cancelSave() {
   previewDataUrl = null;
 }
 
-// Mouse events
-img.addEventListener("mousedown", e => {
-  if (mode === "pen") {
-    drawing = true;
-    ctx.beginPath();
-    ctx.moveTo(e.offsetX, e.offsetY);
-  } else if (mode === "crop") {
-    cropping = true;
-    cropStart = { x: e.offsetX, y: e.offsetY };
-  } else if (mode === "view") {
-    isPanning = true;
-    panStart = { x: e.clientX, y: e.clientY };
-  }
-});
-
-img.addEventListener("mousemove", e => {
-  if (mode === "pen" && drawing) {
-    ctx.lineTo(e.offsetX, e.offsetY);
-    ctx.strokeStyle = brushColor;
-    ctx.lineWidth = brushSize;
-    ctx.lineCap = "round";
-    ctx.stroke();
-    img.src = canvas.toDataURL();
-  } else if (mode === "view" && isPanning) {
-    let dx = e.clientX - panStart.x;
-    let dy = e.clientY - panStart.y;
-    panOffset.x += dx;
-    panOffset.y += dy;
-    img.style.transform = `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom}) rotate(${rotation}deg)`;
-    panStart = { x: e.clientX, y: e.clientY };
-  }
-});
-
-img.addEventListener("mouseup", e => {
-  if (mode === "pen" && drawing) {
-    drawing = false;
-    saveHistory();
-  } else if (mode === "crop" && cropping && cropStart) {
-    const w = e.offsetX - cropStart.x;
-    const h = e.offsetY - cropStart.y;
-    const cropped = ctx.getImageData(cropStart.x, cropStart.y, w, h);
-    canvas.width = Math.abs(w);
-    canvas.height = Math.abs(h);
-    ctx.putImageData(cropped, 0, 0);
-    img.src = canvas.toDataURL();
-    saveHistory();
-    cropping = false;
-  } else if (mode === "view" && isPanning) {
-    isPanning = false;
-  }
-});
-
 // Controls
-document.getElementById("zoom-in").onclick = () => {
-  zoom += 0.2;
-  img.style.transform = `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom}) rotate(${rotation}deg)`;
-};
-document.getElementById("zoom-out").onclick = () => {
-  zoom = Math.max(0.2, zoom - 0.2);
-  img.style.transform = `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom}) rotate(${rotation}deg)`;
-};
-document.getElementById("rotate").onclick = () => {
-  rotation = (rotation + 90) % 360;
-  img.style.transform = `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom}) rotate(${rotation}deg)`;
-};
+document.getElementById("zoom-in").onclick = () => { zoom += 0.2; centerImage(); };
+document.getElementById("zoom-out").onclick = () => { zoom = Math.max(0.2, zoom - 0.2); centerImage(); };
+document.getElementById("rotate").onclick = () => { rotation = (rotation + 90) % 360; centerImage(); };
 
 document.getElementById("undo").onclick = undo;
 document.getElementById("redo").onclick = redo;
 document.getElementById("save").onclick = saveFile;
 document.getElementById("save-as").onclick = saveFileAs;
 
-document.getElementById("brush-color").oninput = e => {
-  brushColor = e.target.value;
-  mode = "pen";
-};
-document.getElementById("brush-size").oninput = e => {
-  brushSize = e.target.value;
-  mode = "pen";
-};
+document.getElementById("brush-color").oninput = e => { brushColor = e.target.value; mode = "pen"; };
+document.getElementById("brush-size").oninput = e => { brushSize = e.target.value; mode = "pen"; };
 document.getElementById("crop").onclick = () => { mode = "crop"; };
 document.getElementById("view").onclick = () => { mode = "view"; };
 
