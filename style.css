@@ -7,7 +7,16 @@
 * { box-sizing: border-box; }
 html,body { height: 100%; margin: 0; background: #000; color: #fff; font-family: Inter, Roboto, Arial, sans-serif; }
 
-#viewer { position: relative; width: 100%; height: 100vh; overflow: hidden; }
+#stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  z-index: 10;
+  overflow: hidden;
+}
 
 /* Topbar */
 #topbar {
@@ -22,10 +31,22 @@ html,body { height: 100%; margin: 0; background: #000; color: #fff; font-family:
   backdrop-filter: blur(6px);
 }
 
-#lefttop { font-size: 14px; color: #fff; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#filename {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 14px;
+  max-width: 200px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+#filename:focus {
+  outline: none;
+  border-bottom: 1px solid #888;
+}
 
 #controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-
 #controls button {
   background: var(--control-btn-bg);
   border: none;
@@ -39,20 +60,10 @@ html,body { height: 100%; margin: 0; background: #000; color: #fff; font-family:
 #controls button:disabled { opacity: 0.35; cursor: not-allowed; }
 
 .mini { display: inline-flex; align-items: center; gap: 6px; color: #fff; }
-.mini input[type="range"] { width: 90px; vertical-align: middle; }
+.mini input[type="range"] { width: 90px; }
 .mini input[type="color"] { width: 34px; height: 28px; padding: 0; border: none; background: transparent; cursor: pointer; }
 
-/* Stage */
-#stage {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #000;
-  z-index: 10;
-}
-
+/* Image */
 #image {
   max-width: 100%;
   max-height: 100%;
@@ -87,89 +98,43 @@ html,body { height: 100%; margin: 0; background: #000; color: #fff; font-family:
   cursor: pointer;
 }
 
-/* canvas editor */
-.edit-canvas {
-  position: absolute;
-  top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 50;
-  box-shadow: 0 8px 40px rgba(0,0,0,0.6);
-}
-/* small helper text (optional) */
-.toast {
-  position: absolute;
-  bottom: 18px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(0,0,0,0.6);
-  padding: 8px 12px;
-  border-radius: 8px;
-  z-index: 80;
-  color: #fff;
-  font-size: 14px;
-}
-
-/* Toolbar khi View mode */
-body.view-mode #toolbar button:not(#view):not(#edit),
-body.view-mode #toolbar input {
-  display: none;
-}
-
-body.view-mode #toolbar #edit {
-  display: inline-block;
-}
-
-body.view-mode #filename {
-  pointer-events: none; /* khóa rename */
-  background: #eee;
-  color: #666;
-}
-
-/* Fade animation cho popup */
-@keyframes fadeIn {
-  from {opacity:0; transform:scale(0.9);}
-  to {opacity:1; transform:scale(1);}
-}
-
+/* crop box */
 #cropBox {
   position: absolute;
   border: 2px dashed #fff;
   background: rgba(0,0,0,0.2);
   display: none;
   pointer-events: none;
-  z-index: 55; /* trên ảnh, dưới topbar */
+  z-index: 55;
 }
 
 /* Preview Popup */
 #previewPopup {
   display: none;
   position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: rgba(0,0,0,0.8);
-  justify-content: center;
-  align-items: center;
-  z-index: 200; /* trên cùng */
+  top:0; left:0;
+  width:100%; height:100%;
+  background:rgba(0,0,0,0.8);
+  justify-content:center;
+  align-items:center;
+  z-index:200;
   animation: fadeIn 0.2s ease;
 }
-
 #previewPopup .popup-inner {
-  background: #222;
-  padding: 12px;
-  border-radius: 10px;
-  max-width: 90%;
-  max-height: 90%;
-  text-align: center;
+  background:#222;
+  padding:12px;
+  border-radius:10px;
+  max-width:90%;
+  max-height:90%;
+  text-align:center;
   animation: fadeIn 0.2s ease;
 }
-
 #previewImg {
-  max-width: 100%;
-  max-height: 70vh;
-  border: 2px solid #555;
-  margin-bottom: 10px;
+  max-width:100%;
+  max-height:70vh;
+  border:2px solid #555;
+  margin-bottom:10px;
 }
-
 #previewPopup button {
   background: var(--control-btn-bg);
   border: none;
@@ -179,6 +144,22 @@ body.view-mode #filename {
   cursor: pointer;
   margin: 0 4px;
 }
-#previewPopup button:hover {
-  background: var(--control-btn-hover);
+#previewPopup button:hover { background: var(--control-btn-hover); }
+
+/* View mode */
+body.view-mode #controls button:not(#view):not(#edit),
+body.view-mode #controls input {
+  display: none;
+}
+body.view-mode #controls #edit { display: inline-block; }
+body.view-mode #filename {
+  pointer-events: none;
+  background: #eee;
+  color: #666;
+}
+
+/* Fade animation */
+@keyframes fadeIn {
+  from {opacity:0; transform:scale(0.9);}
+  to {opacity:1; transform:scale(1);}
 }
