@@ -148,6 +148,22 @@ body.view-mode #filename {
   color: #888;
 }
 
+/* ===== File Info Sidebar ===== */
+#fileInfo {
+  position: absolute;
+  top: 0; right: -260px;
+  width: 240px;
+  height: 100%;
+  background: rgba(0,0,0,0.9);
+  color: #fff;
+  padding: 16px;
+  z-index: 70;
+  transition: right 0.3s ease;
+}
+#fileInfo h3 { margin-top: 0; font-size: 16px; }
+#fileInfo p { margin: 8px 0; font-size: 13px; }
+#fileInfo.show { right: 0; }
+
 /* ===== Fade animation ===== */
 @keyframes fadeIn {
   from { opacity:0; transform:scale(0.9); }
