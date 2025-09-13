@@ -150,22 +150,3 @@ body.view-mode #filename { pointer-events: none; background: #eee; color: #666; 
 
 /* Fade animation */
 @keyframes fadeIn { from {opacity:0; transform:scale(0.9);} to {opacity:1; transform:scale(1);} }
-
-/* Fade-in effect cho placeholder */
-#placeholder {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  color: #aaa;
-  z-index: 20;
-  opacity: 0;
-  animation: fadeIn 0.3s forwards;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to   { opacity: 1; transform: scale(1); }
-}
