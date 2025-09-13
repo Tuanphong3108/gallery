@@ -2,132 +2,227 @@ let fileHandles = [];
 let currentIndex = 0;
 let zoom = 1;
 let rotation = 0;
-let scale = 1;
+let drawingMode = "none"; // none | brush | text | crop | view
 let isDrawing = false;
-let drawingMode = "none"; // none, brush, text, crop
-let brushColor = "#ff0000";
-let brushSize = 5;
-let textColor = "#000000";
-let textSize = 24;
-let previewDataUrl = "";
-let pendingFilename = "";
+let ctx, canvas;
+let saveHandle = null;
 
 const img = document.getElementById("image");
+const placeholder = document.getElementById("placeholder");
 const filenameInput = document.getElementById("filename");
-const savingStatus = document.getElementById("savingStatus");
+const toast = document.createElement("div");
+toast.className = "toast";
+document.body.appendChild(toast);
 
-// LaunchQueue cho File Handling API
+// LaunchQueue
 if ("launchQueue" in window) {
   launchQueue.setConsumer(async (launchParams) => {
     if (!launchParams.files.length) return;
     fileHandles = launchParams.files;
     currentIndex = 0;
+    saveHandle = fileHandles[0];
     showImage();
   });
 }
 
+// ===== Show image =====
 async function showImage() {
-  const file = await fileHandles[currentIndex].getFile();
-  filenameInput.value = file.name;
-  img.src = URL.createObjectURL(file);
-  img.style.transform = `translate(-50%, -50%) scale(${zoom}) rotate(${rotation}deg)`;
-  document.getElementById("placeholder").style.display = "none";
+  if (!fileHandles.length) return showError("No image loaded");
+  try {
+    const file = await fileHandles[currentIndex].getFile();
+    if (!file || file.size === 0) return showError("This file is empty");
+    if (file.type === "image/gif") return showError("GIF files are not supported right now");
+    if (!file.type.startsWith("image/")) return showError("Unsupported file type");
+
+    const url = URL.createObjectURL(file);
+    zoom = 1; rotation = 0;
+    img.src = url;
+    img.style.display = "block";
+    img.style.transform = `translate(-50%, -50%) scale(${zoom}) rotate(${rotation}deg)`;
+    placeholder.style.display = "none";
+    filenameInput.value = file.name;
+  } catch (err) {
+    console.error(err);
+    showError("Failed to load file");
+  }
 }
 
-// Upload fallback
-const fileInput = document.getElementById("file-input");
-const uploadBtn = document.getElementById("upload");
-const uploadBtn2 = document.getElementById("uploadBtn");
+// ===== Error =====
+function showError(message) {
+  img.style.display = "none";
+  placeholder.style.display = "flex";
+  placeholder.innerHTML = `
+    <div style="text-align:center">
+      <div style="font-size:48px; margin-bottom:12px">🚫</div>
+      <p>${message}</p>
+      <button onclick="window.close()">Close app</button>
+    </div>
+  `;
+}
 
-[uploadBtn, uploadBtn2].forEach(btn => btn.onclick = () => fileInput.click());
-fileInput.onchange = async (e) => {
-  if (!e.target.files.length) return;
-  fileHandles = Array.from(e.target.files).map(f => ({getFile: async ()=>f}));
-  currentIndex = 0;
-  showImage();
+// ===== Controls =====
+document.getElementById("zoom-in").onclick = () => { zoom += 0.2; applyTransform(); };
+document.getElementById("zoom-out").onclick = () => { zoom = Math.max(0.2, zoom - 0.2); applyTransform(); };
+document.getElementById("rotate").onclick = () => { rotation = (rotation + 90) % 360; applyTransform(); };
+function applyTransform() {
+  img.style.transform = `translate(-50%, -50%) scale(${zoom}) rotate(${rotation}deg)`;
+}
+
+// ===== Upload =====
+document.getElementById("uploadBtn").onclick = () => document.getElementById("fileInput").click();
+document.getElementById("fileInput").onchange = async (e) => {
+  if (e.target.files.length) {
+    const file = e.target.files[0];
+    fileHandles = [await fakeHandle(file)];
+    saveHandle = null;
+    currentIndex = 0;
+    showImage();
+  }
+};
+async function fakeHandle(file) {
+  return {
+    getFile: async () => file,
+    createWritable: async () => ({
+      write: async (d) => console.log("Fake write:", d),
+      close: async () => console.log("Fake close")
+    })
+  };
+}
+
+// ===== View mode =====
+document.getElementById("view").onclick = () => {
+  drawingMode = "view";
+  document.body.classList.add("view-mode");
+  showToast("View mode enabled");
+};
+document.getElementById("edit").onclick = () => {
+  drawingMode = "none";
+  document.body.classList.remove("view-mode");
+  showToast("Edit mode enabled");
 };
 
-// Controls
-document.getElementById("zoom-in").onclick = () => { zoom += 0.2; showImage(); };
-document.getElementById("zoom-out").onclick = () => { zoom = Math.max(0.2, zoom - 0.2); showImage(); };
-document.getElementById("rotate").onclick = () => { rotation = (rotation + 90) % 360; showImage(); };
+let isPanning = false, startPanX, startPanY, offsetX = 0, offsetY = 0;
+img.addEventListener("mousedown", (e) => {
+  if (drawingMode === "view") {
+    isPanning = true;
+    startPanX = e.clientX - offsetX;
+    startPanY = e.clientY - offsetY;
+  }
+});
+window.addEventListener("mousemove", (e) => {
+  if (isPanning) {
+    offsetX = e.clientX - startPanX;
+    offsetY = e.clientY - startPanY;
+    img.style.transform = `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px)) scale(${zoom}) rotate(${rotation}deg)`;
+  }
+});
+window.addEventListener("mouseup", () => isPanning = false);
 
-// Brush
-document.getElementById("brush").onclick = () => { drawingMode = "brush"; };
-document.getElementById("brush-color").oninput = e => brushColor = e.target.value;
-document.getElementById("brush-size").oninput = e => brushSize = e.target.value;
-
-// Text
-document.getElementById("text").onclick = () => { drawingMode = "text"; };
-document.getElementById("text-color").oninput = e => textColor = e.target.value;
-document.getElementById("text-size").oninput = e => textSize = e.target.value;
-
-// Crop
-document.getElementById("crop").onclick = () => { drawingMode = "crop"; };
-
-// Save
-document.getElementById("save").onclick = () => {
-  if (!fileHandles.length) return alert("No file!");
-  pendingFilename = filenameInput.value || "image.png";
-  showPreview(true);
-};
-
-document.getElementById("save-as").onclick = () => {
-  if (!fileHandles.length) return alert("No file!");
-  pendingFilename = filenameInput.value || "edited.png";
-  showPreview(false);
-};
-
-function showPreview(overwrite) {
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
+// ===== Canvas setup =====
+function setupCanvas() {
+  if (!canvas) {
+    canvas = document.createElement("canvas");
+    canvas.className = "edit-canvas";
+    document.getElementById("stage").appendChild(canvas);
+    ctx = canvas.getContext("2d");
+    bindCanvasEvents();
+  }
   canvas.width = img.naturalWidth;
   canvas.height = img.naturalHeight;
   ctx.drawImage(img, 0, 0);
-  previewDataUrl = canvas.toDataURL("image/png");
-
-  document.getElementById("previewImg").src = previewDataUrl;
-  document.getElementById("previewNote").textContent = overwrite ?
-    "This will overwrite the current file." :
-    "This will download as a new file.";
-  document.getElementById("previewPopup").style.display = "flex";
 }
 
-async function confirmSave() {
-  const overwrite = document.getElementById("previewNote").textContent.includes("overwrite");
+// ===== Brush =====
+document.getElementById("brush").onclick = () => { setupCanvas(); drawingMode = "brush"; showToast("Brush mode"); };
 
-  if (overwrite && fileHandles.length && fileHandles[currentIndex].createWritable) {
-    try {
-      savingStatus.style.display = "block"; // hiện Saving...
-      const h = fileHandles[currentIndex];
-      const w = await h.createWritable();
-      await w.write(await (await fetch(previewDataUrl)).blob());
-      await w.close();
-      savingStatus.style.display = "none";
-      alert("File overwritten successfully!");
-    } catch (e) {
-      console.error(e);
-      savingStatus.style.display = "none";
-      alert("Save failed, try Save As.");
+// ===== Text =====
+document.getElementById("text").onclick = () => { setupCanvas(); drawingMode = "text"; showToast("Text mode"); };
+
+// ===== Crop =====
+document.getElementById("crop").onclick = () => { setupCanvas(); drawingMode = "crop"; showToast("Crop mode"); };
+
+// ===== Canvas events =====
+function bindCanvasEvents() {
+  canvas.addEventListener("mousedown", (e) => {
+    if (drawingMode === "brush") {
+      isDrawing = true;
+      ctx.strokeStyle = document.getElementById("color").value;
+      ctx.lineWidth = document.getElementById("brushSize").value;
+      ctx.beginPath();
+      ctx.moveTo(e.offsetX, e.offsetY);
+    } else if (drawingMode === "crop") {
+      isDrawing = true;
+      this.cropStartX = e.offsetX;
+      this.cropStartY = e.offsetY;
     }
-  } else {
-    // Save As
-    const link = document.createElement("a");
-    link.download = pendingFilename;
-    link.href = previewDataUrl;
+  });
+  canvas.addEventListener("mousemove", (e) => {
+    if (isDrawing && drawingMode === "brush") {
+      ctx.lineTo(e.offsetX, e.offsetY);
+      ctx.stroke();
+    }
+  });
+  canvas.addEventListener("mouseup", (e) => {
+    if (drawingMode === "brush") isDrawing = false;
+    else if (drawingMode === "crop") {
+      const cropW = e.offsetX - this.cropStartX;
+      const cropH = e.offsetY - this.cropStartY;
+      const imgData = ctx.getImageData(this.cropStartX, this.cropStartY, cropW, cropH);
+      canvas.width = cropW; canvas.height = cropH;
+      ctx.putImageData(imgData, 0, 0);
+      isDrawing = false;
+      showToast("Cropped");
+    }
+  });
+  canvas.addEventListener("click", (e) => {
+    if (drawingMode === "text") {
+      const text = prompt("Enter text:");
+      if (text) {
+        ctx.fillStyle = document.getElementById("color").value;
+        ctx.font = `${document.getElementById("textSize").value}px sans-serif`;
+        ctx.fillText(text, e.offsetX, e.offsetY);
+      }
+    }
+  });
+}
+
+// ===== Save =====
+document.getElementById("save").onclick = async () => {
+  if (!canvas) return showToast("Nothing to save");
+  showSavingPopup();
+  try {
+    if (saveHandle && saveHandle.createWritable) {
+      const writable = await saveHandle.createWritable();
+      await writable.write(await new Promise(r => canvas.toBlob(r)));
+      await writable.close();
+      hideSavingPopup("Saved ✅");
+    } else {
+      downloadCanvas(filenameInput.value);
+      hideSavingPopup("Downloaded ✅");
+    }
+  } catch { hideSavingPopup("Save failed ❌"); }
+};
+document.getElementById("saveAs").onclick = () => {
+  if (!canvas) return showToast("Nothing to save");
+  downloadCanvas("edited-" + filenameInput.value);
+};
+function downloadCanvas(name) {
+  const link = document.createElement("a");
+  link.download = name;
+  canvas.toBlob((blob) => {
+    link.href = URL.createObjectURL(blob);
     link.click();
-  }
-  cancelSave();
+  });
 }
 
-function cancelSave() {
-  document.getElementById("previewPopup").style.display = "none";
+// ===== Toast =====
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.style.display = "block";
+  setTimeout(() => toast.style.display = "none", 2000);
 }
-
-// View/Edit mode toggle
-document.getElementById("view").onclick = () => {
-  document.body.classList.add("view-mode");
-};
-document.getElementById("edit").onclick = () => {
-  document.body.classList.remove("view-mode");
-};
+function showSavingPopup() { toast.textContent = "Saving..."; toast.style.display = "block"; }
+function hideSavingPopup(msg) {
+  toast.textContent = msg;
+  setTimeout(() => toast.style.display = "none", 2000);
+}
