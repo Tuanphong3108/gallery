@@ -5,20 +5,9 @@
 }
 
 * { box-sizing: border-box; }
-html,body {
-  height: 100%;
-  margin: 0;
-  background: #000;
-  color: #fff;
-  font-family: Inter, Roboto, Arial, sans-serif;
-}
+html,body { height: 100%; margin: 0; background: #000; color: #fff; font-family: Inter, Roboto, Arial, sans-serif; }
 
-#viewer {
-  position: relative;
-  width: 100%;
-  height: 100vh;
-  overflow: hidden;
-}
+#viewer { position: relative; width: 100%; height: 100vh; overflow: hidden; }
 
 /* Topbar */
 #topbar {
@@ -33,17 +22,10 @@ html,body {
   backdrop-filter: blur(6px);
 }
 
-#lefttop { font-size: 14px; color: #fff; }
-#filename {
-  background: transparent;
-  border: none;
-  color: #fff;
-  font-size: 14px;
-  outline: none;
-}
+#lefttop { font-size: 14px; color: #fff; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* Controls */
 #controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
 #controls button {
   background: var(--control-btn-bg);
   border: none;
@@ -57,7 +39,7 @@ html,body {
 #controls button:disabled { opacity: 0.35; cursor: not-allowed; }
 
 .mini { display: inline-flex; align-items: center; gap: 6px; color: #fff; }
-.mini input[type="range"] { width: 90px; }
+.mini input[type="range"] { width: 90px; vertical-align: middle; }
 .mini input[type="color"] { width: 34px; height: 28px; padding: 0; border: none; background: transparent; cursor: pointer; }
 
 /* Stage */
@@ -77,17 +59,24 @@ html,body {
   object-fit: contain;
   user-select: none;
   -webkit-user-drag: none;
+  transition: transform 0.18s ease;
   position: absolute;
   top: 50%; left: 50%;
   transform: translate(-50%, -50%) scale(1) rotate(0deg);
-  transition: transform 0.18s ease, opacity 0.25s ease;
-  opacity: 1;
-}
-#image.hide {
-  opacity: 0;
+  z-index: 20; /* ảnh dưới */
 }
 
-/* Placeholder */
+/* Canvas editor */
+.edit-canvas {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%) scale(1) rotate(0deg);
+  z-index: 40; /* canvas trên */
+  box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+  display: none;
+}
+
+/* placeholder */
 #placeholder {
   position: absolute;
   inset: 0;
@@ -96,7 +85,7 @@ html,body {
   justify-content: center;
   flex-direction: column;
   color: #aaa;
-  z-index: 20;
+  z-index: 30;
 }
 #placeholder p { margin: 0 0 12px; font-size: 18px; }
 #fileInput { display: none; }
@@ -107,24 +96,6 @@ html,body {
   border-radius: 8px;
   border: none;
   cursor: pointer;
-}
-
-/* Canvas editor */
-.edit-canvas {
-  position: absolute;
-  top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 30;
-  cursor: crosshair;
-  max-width: 100%;
-  max-height: 100%;
-  background: transparent;
-
-  opacity: 0;
-  transition: opacity 0.25s ease;
-}
-.edit-canvas.show {
-  opacity: 1;
 }
 
 /* Toast */
@@ -139,65 +110,26 @@ html,body {
   z-index: 80;
   color: #fff;
   font-size: 14px;
+}
+
+/* Toolbar khi View mode */
+body.view-mode #toolbar button:not(#view):not(#edit),
+body.view-mode #toolbar input {
   display: none;
 }
 
-/* Info Panel */
-#fileInfo {
-  position: fixed;
-  top: 50%; left: 50%;
-  transform: translate(-50%,-50%) scale(0.95);
-  background: rgba(20,20,20,0.95);
-  padding: 16px;
-  border-radius: 10px;
-  z-index: 100;
-  width: 280px;
-  display: none;
-  opacity: 0;
-  transition: opacity 0.25s ease, transform 0.25s ease;
-}
-#fileInfo.show {
-  display: block;
-  opacity: 1;
-  transform: translate(-50%,-50%) scale(1);
-}
-.fileInfoHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-#fileInfo button {
-  background: var(--control-btn-bg);
-  border: none;
-  color: #fff;
-  padding: 4px 8px;
-  border-radius: 6px;
-  cursor: pointer;
-}
-#fileInfo button:hover { background: var(--control-btn-hover); }
-
-/* Overlay */
-#overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.5);
-  backdrop-filter: blur(2px);
-  z-index: 90;
-  display: none;
-  opacity: 0;
-  transition: opacity 0.25s ease;
-}
-#overlay.show {
-  display: block;
-  opacity: 1;
-}
-
-/* View mode */
-body.view-mode #controls button:not(#view),
-body.view-mode #controls .mini {
-  display: none;
-}
-body.view-mode #edit {
+body.view-mode #toolbar #edit {
   display: inline-block;
+}
+
+body.view-mode #filename {
+  pointer-events: none; /* khóa rename */
+  background: #eee;
+  color: #666;
+}
+
+/* Fade animation cho popup */
+@keyframes fadeIn {
+  from {opacity:0; transform:scale(0.9);}
+  to {opacity:1; transform:scale(1);}
 }
