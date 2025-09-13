@@ -2,6 +2,8 @@ let fileHandles = [];
 let currentIndex = 0;
 let zoom = 1;
 let rotation = 0;
+let scale = 1;
+let isDrawing = false;
 let drawingMode = "none"; // none, brush, text, crop
 let brushColor = "#ff0000";
 let brushSize = 5;
@@ -25,41 +27,11 @@ if ("launchQueue" in window) {
 }
 
 async function showImage() {
-  try {
-    const file = await fileHandles[currentIndex].getFile();
-
-    if (file.size === 0 || !file.type.startsWith("image/")) {
-      showError(file.size === 0 ? "This file is empty" : "Unsupported file type");
-      return;
-    }
-
-    if (file.type === "image/gif") {
-      showError("GIF files are not supported");
-      return;
-    }
-
-    // File hợp lệ → hiển thị bình thường
-    filenameInput.value = file.name;
-    img.src = URL.createObjectURL(file);
-    img.style.transform = `translate(-50%, -50%) scale(${zoom}) rotate(${rotation}deg)`;
-    document.getElementById("placeholder").style.display = "none";
-    document.getElementById("topbar").style.display = "flex";
-  } catch (err) {
-    console.error("Error loading image:", err);
-    alert("Could not load file.");
-  }
-}
-
-function showError(message) {
-  document.getElementById("topbar").style.display = "none";
-  const placeholder = document.getElementById("placeholder");
-  placeholder.style.display = "flex";
-  placeholder.innerHTML = `
-    <p style="font-size:48px;">🚫</p>
-    <p>${message}</p>
-    <button id="closeApp">Close app</button>
-  `;
-  document.getElementById("closeApp").onclick = () => window.close();
+  const file = await fileHandles[currentIndex].getFile();
+  filenameInput.value = file.name;
+  img.src = URL.createObjectURL(file);
+  img.style.transform = `translate(-50%, -50%) scale(${zoom}) rotate(${rotation}deg)`;
+  document.getElementById("placeholder").style.display = "none";
 }
 
 // Upload fallback
