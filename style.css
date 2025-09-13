@@ -77,6 +77,17 @@ html,body { height: 100%; margin: 0; background: #000; color: #fff; font-family:
   cursor: pointer;
 }
 
+/* Overlay mờ khi panel Info bật */
+#infoOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(4px);
+  z-index: 65;
+  display: none;
+}
+#infoOverlay.active { display: block; }
+
 /* File Info panel */
 #fileInfo {
   position: absolute;
@@ -88,7 +99,8 @@ html,body { height: 100%; margin: 0; background: #000; color: #fff; font-family:
   color: #fff;
   font-size: 13px;
   width: 260px;
-  animation: slideIn 0.25s ease;
+  animation: slideIn 0.25s ease forwards;
+  opacity: 1;
 }
 #fileInfo.hidden { display: none; }
 #fileInfo p { margin: 6px 0; }
@@ -107,8 +119,15 @@ html,body { height: 100%; margin: 0; background: #000; color: #fff; font-family:
   cursor: pointer;
 }
 
-/* Slide animation */
+/* Animations */
+#fileInfo.fade-out {
+  animation: fadeOut 0.25s ease forwards;
+}
 @keyframes slideIn {
   from { transform: translateX(100%); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }
+}
+@keyframes fadeOut {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(100%); opacity: 0; }
 }
