@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gallery</title>
   <link rel="stylesheet" href="style.css">
   <link rel="manifest" href="manifest.json">
@@ -11,63 +12,60 @@
     <!-- Topbar -->
     <div id="topbar">
       <div id="lefttop">
-        <input id="filename" value="No file" readonly>
+        <input id="filename" value="Untitled.png">
       </div>
-      <div id="toolbar">
-        <!-- View/Edit toggle -->
+      <div id="controls" id="toolbar">
+        <button id="uploadBtn">📂 Open</button>
+        <input type="file" id="fileInput" accept="image/*">
+
+        <button id="zoom-in">🔍+</button>
+        <button id="zoom-out">🔍-</button>
+        <button id="rotate">🔄</button>
+
         <button id="view">👁️ View</button>
         <button id="edit">✏️ Edit</button>
 
-        <!-- Tools (chỉ hiện ở Edit mode) -->
-        <div class="tools">
-          <button id="prev">⏮️</button>
-          <button id="next">⏭️</button>
-          <button id="zoom-in">🔍+</button>
-          <button id="zoom-out">🔍-</button>
-          <button id="rotate">🔄</button>
-          <button id="brush">🖌️ Brush</button>
-          <button id="text">🔤 Text</button>
-          <button id="crop">✂️ Crop</button>
-          <div class="mini">
-            <label><input type="color" id="color" value="#ff0000"></label>
-          </div>
-          <div class="mini">
-            <label><input type="range" id="brushSize" min="1" max="20" value="5"></label>
-          </div>
-          <div class="mini">
-            <label><input type="range" id="textSize" min="10" max="72" value="24"></label>
-          </div>
-          <button id="save">💾 Save</button>
-          <button id="saveAs">📂 Save As</button>
-          <button id="info">ℹ️ Info</button>
+        <button id="brush">🖌️ Brush</button>
+        <div class="mini">
+          <input type="range" id="brushSize" min="1" max="20" value="5">
         </div>
+        <div class="mini">
+          <input type="color" id="color" value="#ff0000">
+        </div>
+
+        <button id="text">🔤 Text</button>
+        <div class="mini">
+          <input type="range" id="textSize" min="8" max="64" value="24">
+        </div>
+
+        <button id="crop">✂️ Crop</button>
+
+        <button id="save">💾 Save</button>
+        <button id="saveAs">📥 Save As</button>
+
+        <button id="info">ℹ️ Info</button>
       </div>
     </div>
 
     <!-- Stage -->
     <div id="stage">
-      <img id="image" alt="Image Viewer">
+      <img id="image" draggable="false" />
       <div id="placeholder">
-        <p>🚫 No image loaded</p>
-        <input type="file" id="fileInput" multiple accept="image/*">
-        <button id="uploadBtn">Upload files</button>
+        <p>🖼️ Image Viewer</p>
+        <button id="uploadBtn">📂 Open Image</button>
       </div>
     </div>
 
-    <!-- Overlay blur -->
-    <div id="overlay"></div>
-
-    <!-- File Info -->
-    <div id="fileInfo" class="hidden">
-      <div class="fileInfoHeader">
-        <span>File Info</span>
-        <button id="closeInfo">❌</button>
+    <!-- File Info Panel -->
+    <div id="fileInfo">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h3>ℹ️ File Info</h3>
+        <button onclick="fileInfoPanel.classList.remove('show')">✖</button>
       </div>
-      <p><strong>Name:</strong> <span id="info-name">-</span></p>
-      <p><strong>Type:</strong> <span id="info-type">-</span></p>
-      <p><strong>Size:</strong> <span id="info-size">-</span></p>
-      <p><strong>Modified:</strong> <span id="info-mod">-</span></p>
-      <p><strong>Resolution:</strong> <span id="info-res">-</span></p>
+      <p><strong>Name:</strong> <span id="info-name"></span></p>
+      <p><strong>Type:</strong> <span id="info-type"></span></p>
+      <p><strong>Size:</strong> <span id="info-size"></span></p>
+      <p><strong>Last Modified:</strong> <span id="info-mod"></span></p>
     </div>
   </div>
 
