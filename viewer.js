@@ -2,7 +2,7 @@ let fileHandles = [];
 let currentIndex = 0;
 let zoom = 1;
 let rotation = 0;
-let drawingMode = "none"; // none | brush | text | crop | view
+let drawingMode = "none";
 let isDrawing = false;
 let ctx, canvas;
 let saveHandle = null;
@@ -14,7 +14,14 @@ const toast = document.createElement("div");
 toast.className = "toast";
 document.body.appendChild(toast);
 
-// LaunchQueue
+const fileInfoPanel = document.getElementById("fileInfo");
+const infoBtn = document.getElementById("info");
+const infoName = document.getElementById("info-name");
+const infoType = document.getElementById("info-type");
+const infoSize = document.getElementById("info-size");
+const infoMod = document.getElementById("info-mod");
+
+// ===== LaunchQueue =====
 if ("launchQueue" in window) {
   launchQueue.setConsumer(async (launchParams) => {
     if (!launchParams.files.length) return;
@@ -41,6 +48,13 @@ async function showImage() {
     img.style.transform = `translate(-50%, -50%) scale(${zoom}) rotate(${rotation}deg)`;
     placeholder.style.display = "none";
     filenameInput.value = file.name;
+
+    // 🆕 Update file info
+    infoName.textContent = file.name;
+    infoType.textContent = file.type || "Unknown";
+    infoSize.textContent = (file.size / 1024).toFixed(1) + " KB";
+    infoMod.textContent = file.lastModified ? new Date(file.lastModified).toLocaleString() : "-";
+
   } catch (err) {
     console.error(err);
     showError("Failed to load file");
@@ -89,7 +103,7 @@ async function fakeHandle(file) {
   };
 }
 
-// ===== View mode =====
+// ===== View/Edit mode =====
 document.getElementById("view").onclick = () => {
   drawingMode = "view";
   document.body.classList.add("view-mode");
@@ -226,3 +240,6 @@ function hideSavingPopup(msg) {
   toast.textContent = msg;
   setTimeout(() => toast.style.display = "none", 2000);
 }
+
+// ===== File Info toggle =====
+infoBtn.onclick = () => fileInfoPanel.classList.toggle("show");
