@@ -38,6 +38,9 @@
         <!-- Save -->
         <button id="save">💾 Save</button>
         <button id="saveAs">📂 Save As</button>
+
+        <!-- Info -->
+        <button id="info">ℹ️ Info</button>
       </div>
     </div>
 
@@ -50,6 +53,15 @@
         <input type="file" id="fileInput" accept="image/*">
       </div>
     </div>
+
+    <!-- File Info Sidebar -->
+    <aside id="fileInfo" class="hidden">
+      <h3>File Info</h3>
+      <p><strong>Name:</strong> <span id="info-name">-</span></p>
+      <p><strong>Type:</strong> <span id="info-type">-</span></p>
+      <p><strong>Size:</strong> <span id="info-size">-</span></p>
+      <p><strong>Modified:</strong> <span id="info-mod">-</span></p>
+    </aside>
   </div>
 
   <script src="viewer.js"></script>
