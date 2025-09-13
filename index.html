@@ -8,69 +8,49 @@
 </head>
 <body>
   <div id="viewer">
-    <!-- Topbar -->
+    <!-- Thanh top -->
     <div id="topbar">
       <div id="lefttop">
-        <input id="filename" value="No file" />
+        <input id="filename" value="No file" disabled>
       </div>
       <div id="controls">
-        <!-- View/Edit -->
-        <button id="view">👁️ View</button>
-        <button id="edit">✏️ Edit</button>
-
-        <!-- Tools -->
+        <button id="prev">⏮️</button>
+        <button id="next">⏭️</button>
         <button id="zoom-in">🔍+</button>
         <button id="zoom-out">🔍-</button>
         <button id="rotate">🔄</button>
-        <button id="brush">🖌️ Brush</button>
-        <button id="text">🔤 Text</button>
-        <input id="textSize" type="number" value="24" min="8" max="128" />
-        <button id="crop">✂️ Crop</button>
-        <div class="mini">
-          <label>Size:</label>
-          <input type="range" id="brushSize" min="1" max="50" value="5">
-        </div>
-        <div class="mini">
-          <label>Color:</label>
-          <input type="color" id="color" value="#ff0000">
-        </div>
-
-        <!-- Save -->
+        <button id="view">👁️ View</button>
+        <button id="edit">✏️ Edit</button>
         <button id="save">💾 Save</button>
         <button id="saveAs">📂 Save As</button>
-
-        <!-- Info -->
         <button id="info">ℹ️ Info</button>
       </div>
     </div>
 
-    <!-- Stage -->
+    <!-- Khu ảnh -->
     <div id="stage">
       <img id="image" alt="Image Viewer">
       <div id="placeholder">
-        <p>No image loaded</p>
+        <p>🚫 No image loaded</p>
+        <input type="file" id="fileInput" multiple accept="image/*">
         <button id="uploadBtn">Upload files</button>
-        <input type="file" id="fileInput" accept="image/*">
       </div>
     </div>
 
-    <!-- File Info Sidebar -->
-    <aside id="fileInfo" class="hidden">
-      <h3>File Info</h3>
+    <!-- File Info panel -->
+    <div id="fileInfo" class="hidden">
+      <div class="fileInfoHeader">
+        <span>File Info</span>
+        <button id="closeInfo">❌</button>
+      </div>
       <p><strong>Name:</strong> <span id="info-name">-</span></p>
       <p><strong>Type:</strong> <span id="info-type">-</span></p>
       <p><strong>Size:</strong> <span id="info-size">-</span></p>
       <p><strong>Modified:</strong> <span id="info-mod">-</span></p>
-    </aside>
+      <p><strong>Resolution:</strong> <span id="info-res">-</span></p>
+    </div>
   </div>
 
   <script src="viewer.js"></script>
-  <script>
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("service-worker.js")
-        .then(() => console.log("Service Worker registered!"))
-        .catch(err => console.error("SW registration failed:", err));
-    }
-  </script>
 </body>
 </html>
