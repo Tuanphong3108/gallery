@@ -133,3 +133,14 @@ body.view-mode #filename {
   from {opacity:0; transform:scale(0.9);}
   to {opacity:1; transform:scale(1);}
 }
+
+#controls {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  overflow-x: auto;   /* Cho phép cuộn ngang khi tràn */
+  white-space: nowrap;
+  flex-wrap: nowrap;  /* Bắt buộc cùng 1 hàng */
+  padding-bottom: 4px;
+}
+
