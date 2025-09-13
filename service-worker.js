@@ -8,17 +8,60 @@ const urlsToCache = [
 ];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache)));
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", async (event) => {
+  event.waitUntil((async () => {
+    try {
+      // Test mạng
+      await fetch("index.html", { method: "HEAD", cache: "no-store" });
+
+      // Nếu có mạng → clear toàn bộ cache
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+      console.log("[SW] Online ✅ → Cache cleared, fresh files will be used.");
+
+      // Cache lại
+      const cache = await caches.open(CACHE_NAME);
+      await cache.addAll(urlsToCache);
+
+    } catch {
+      console.log("[SW] Offline 🚫 → Keep old cache.");
+    }
+
+    await self.clients.claim();
+  })());
 });
 
 self.addEventListener("fetch", (event) => {
-  event.respondWith(
-    caches.match(event.request).then(response => response || fetch(event.request))
-  );
+  event.respondWith((async () => {
+    try {
+      // Luôn ưu tiên network
+      const networkResponse = await fetch(event.request, { cache: "no-store" });
+
+      // Nếu fetch thành công → update cache
+      const cache = await caches.open(CACHE_NAME);
+      cache.put(event.request, networkResponse.clone());
+      return networkResponse;
+
+    } catch {
+      // Nếu offline → lấy cache
+      const cachedResponse = await caches.match(event.request);
+      return cachedResponse || Response.error();
+    }
+  })());
 });
 
-self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.map(k => { if (k !== CACHE_NAME) return caches.delete(k); })))
-  );
+// 🆕 Message outdated version
+self.addEventListener("message", async (event) => {
+  if (event.data === "checkVersion") {
+    try {
+      await fetch("index.html", { method: "HEAD", cache: "no-store" });
+      // Nếu fetch được → notify client kiểm tra
+      event.source.postMessage({ type: "outdated" });
+    } catch {
+      // Offline thì thôi
+    }
+  }
 });
