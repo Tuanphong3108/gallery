@@ -14,20 +14,39 @@
         <input id="filename" value="No file" disabled>
       </div>
       <div id="controls">
+        <!-- Điều hướng ảnh -->
         <button id="prev">⏮️</button>
         <button id="next">⏭️</button>
         <button id="zoom-in">🔍+</button>
         <button id="zoom-out">🔍-</button>
         <button id="rotate">🔄</button>
+
+        <!-- Chế độ -->
         <button id="view">👁️ View</button>
         <button id="edit">✏️ Edit</button>
+
+        <!-- Công cụ chỉnh sửa -->
+        <button id="brush">🖌️ Brush</button>
+        <button id="text">🔤 Text</button>
+        <button id="crop">✂️ Crop</button>
+        <div class="mini">
+          <label>🎨 <input type="color" id="color" value="#ff0000"></label>
+        </div>
+        <div class="mini">
+          <label>🖌️ <input type="range" id="brushSize" min="1" max="20" value="5"></label>
+        </div>
+        <div class="mini">
+          <label>🔤 <input type="range" id="textSize" min="10" max="72" value="24"></label>
+        </div>
+
+        <!-- Lưu + Info -->
         <button id="save">💾 Save</button>
         <button id="saveAs">📂 Save As</button>
         <button id="info">ℹ️ Info</button>
       </div>
     </div>
 
-    <!-- Khu ảnh -->
+    <!-- Stage -->
     <div id="stage">
       <img id="image" alt="Image Viewer">
       <div id="placeholder">
@@ -38,7 +57,7 @@
     </div>
 
     <!-- Overlay blur -->
-    <div id="infoOverlay"></div>
+    <div id="overlay"></div>
 
     <!-- File Info panel -->
     <div id="fileInfo" class="hidden">
