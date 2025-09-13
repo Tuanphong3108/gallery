@@ -46,7 +46,7 @@ async function showImage() {
     const url = URL.createObjectURL(file);
     zoom = 1; rotation = 0;
     img.src = url; img.style.display = "block";
-    if (canvas) canvas.style.display = "none";
+    if (canvas) canvas.classList.remove("show");
     placeholder.style.display = "none";
     filenameInput.value = file.name;
 
@@ -67,7 +67,7 @@ async function showImage() {
 
 function showError(msg) {
   img.style.display = "none";
-  if (canvas) canvas.style.display = "none";
+  if (canvas) canvas.classList.remove("show");
   placeholder.style.display = "flex";
   placeholder.innerHTML = `
     <div style="text-align:center">
@@ -107,22 +107,22 @@ async function fakeHandle(file) {
 function enterViewMode() {
   document.body.classList.add("view-mode");
   showToast("View mode");
-  if (canvas) canvas.style.display = "none";
-  img.style.display = "block";
+  if (canvas) canvas.classList.remove("show");
+  img.classList.remove("hide");
 }
 
 function enterEditMode() {
   document.body.classList.remove("view-mode");
   showToast("Edit mode");
   setupCanvas();
-  img.style.display = "none";
-  canvas.style.display = "block";
+  img.classList.add("hide");
+  canvas.classList.add("show");
 }
 
 document.getElementById("view").onclick = enterViewMode;
 document.getElementById("edit").onclick = enterEditMode;
 
-// ===== Panning (chỉ trong View) =====
+// ===== Panning (View mode) =====
 let isPanning = false, startX, startY, offsetX = 0, offsetY = 0;
 img.addEventListener("mousedown", (e) => {
   if (document.body.classList.contains("view-mode")) {
@@ -241,10 +241,10 @@ function downloadCanvas(name) {
 }
 
 // ===== Info =====
-infoBtn.onclick = () => { fileInfoPanel.classList.toggle("hidden"); overlay.classList.toggle("show"); };
-closeInfoBtn.onclick = () => { fileInfoPanel.classList.add("hidden"); overlay.classList.remove("show"); };
-overlay.onclick = () => { fileInfoPanel.classList.add("hidden"); overlay.classList.remove("show"); };
-window.addEventListener("keydown", (e) => { if (e.key === "Escape") { fileInfoPanel.classList.add("hidden"); overlay.classList.remove("show"); } });
+infoBtn.onclick = () => { fileInfoPanel.classList.toggle("show"); overlay.classList.toggle("show"); };
+closeInfoBtn.onclick = () => { fileInfoPanel.classList.remove("show"); overlay.classList.remove("show"); };
+overlay.onclick = () => { fileInfoPanel.classList.remove("show"); overlay.classList.remove("show"); };
+window.addEventListener("keydown", (e) => { if (e.key === "Escape") { fileInfoPanel.classList.remove("show"); overlay.classList.remove("show"); } });
 
 // ===== Rename =====
 filenameInput.addEventListener("dblclick", () => { filenameInput.removeAttribute("readonly"); filenameInput.focus(); });
